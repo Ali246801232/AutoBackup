@@ -1,0 +1,5 @@
+- Make a dashboard-style GUI with backup configurations and viewing ongoing backups(?).
+    - Maybe webapp.
+    - Not sure how to keep track of ongoing backups, given the scheduler will be running in the background as probably a separate program.
+    - Load, edit, and save multiple `.json` configurations with a folder `backup_configs/`.
+- Make the scheduler.
