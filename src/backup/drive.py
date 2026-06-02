@@ -38,7 +38,6 @@ class DriveHandler:
             "save_credentials_backend": "file",
             "save_credentials_file": str(credentials_file),
             "get_refresh_token": True,
-            "oauth_scope": ["https://www.googleapis.com/auth/drive"]
         })
 
         if not client_config_file.exists():
@@ -47,42 +46,43 @@ class DriveHandler:
         if credentials_file.exists():
             self.gauth.LoadCredentialsFile()
         
+        # Attempt to authorize
         if self.gauth.access_token_expired:
             try:
                 self.gauth.Refresh()
             except RefreshError:
                 self.gauth.credentials = None
                 save_credentials = self.gauth.settings.get("save_credentials")
-                self.gauth.settings["save_credentials"] = False
-                try:
+                try:  # LocalWebserverAuth() calls Refresh() if save_credentials is True so I have to resort to this buffoonery
+                    self.gauth.settings["save_credentials"] = False
                     self.gauth.LocalWebserverAuth()
                 finally:
                     self.gauth.settings["save_credentials"] = save_credentials
         else:
             self.gauth.Authorize()
+
         self.gauth.SaveCredentialsFile()
 
         self.drive = GoogleDrive(self.gauth)
 
 
     def open_folder(self, folder_id: str):
-        """Go to a Drive folder with a given ID."""
+        """Go to a Drive folder with a given ID, and return the folder"""
         self.current_folder = self.drive.CreateFile({"id": folder_id})
         self.current_folder.FetchMetadata()
-        logger.info(f"Opened folder {folder_id}")
+        logger.info(f"[DRIVE] Opened folder {folder_id}")
         return self.current_folder
 
     def go_up(self):
-        """Go to the parent of the current Drive folder."""
+        """Go to the parent of the current Drive folder, and return the folder."""
         parents = self.current_folder["parents"]
         if parents != []:
             self.open_folder(parents[0]["id"])
         return self.current_folder
 
     def go_to_root(self):
-        """Go to the root Drive folder."""
-        self.open_folder("root")
-        return self.current_folder
+        """Go to the root Drive folder, and return the folder."""
+        return self.open_folder("root")
 
 
     def get_children(self, folder_id: str | None = None, query: str = ""):
@@ -91,22 +91,20 @@ class DriveHandler:
             folder_id = self.current_folder["id"]
 
         if query != "":
-            query = f"and ({query})"
-
-        q = (
-            f"'{folder_id}' in parents"
-            " and trashed = false"
-            f" {query}"
-        )
+            query = f" and ({query})"
 
         try:
-            children = self.drive.ListFile({"q": q}).GetList()
+            children = self.drive.ListFile({"q": (
+                f"'{folder_id}' in parents"
+                " and trashed = false"
+                f"{query}"
+            )}).GetList()
         except ApiRequestError as e:
             raise RuntimeError(f"Failed to fetch children ({folder_id}): {e}") from e
 
         children.sort(key=lambda x: x.get("title", "").lower())
 
-        logger.info(f"Fetched children for {folder_id}")
+        logger.info(f"[DRIVE] Fetched children for {folder_id}")
         return children
 
     def get_child_folders(self, folder_id: str | None = None):
@@ -124,7 +122,7 @@ class DriveHandler:
         )
 
     def get_item(self, item_id: str):
-        """Return a given item by drive"""
+        """Return a given Drive item by ID"""
         item = self.drive.CreateFile({"id": item_id})
         item.FetchMetadata()
         return item
@@ -166,7 +164,7 @@ class DriveHandler:
             if is_root:
                 self.folder_upload_result = drive_folder["id"]
         except ApiRequestError as e:
-            logger.error(f"Failed to upload item {folder_path.name}: {e}")
+            logger.error(f"[DRIVE] Failed to upload item {folder_path.name}: {e}")
             if is_root:
                 raise RuntimeError(f"Failed to create folder ({folder_path}): {e}") from e
             return None
@@ -182,12 +180,12 @@ class DriveHandler:
                     self.upload_folder(item, drive_folder["id"], is_root=False)
                 elif item.is_file():
                     self.upload_file(item, drive_folder["id"])
-                logger.debug(f"Uploaded item {item.absolute()}")
+                logger.debug(f"[DRIVE] Uploaded item {item.absolute()}")
             except CancelledError as e:
-                logger.info(f"{e}")
+                logger.info(f"[DRIVE] {e}")
                 raise
             except Exception as e:
-                logger.error(f"Failed to upload item {item.absolute()}: {e}")
+                logger.error(f"[DRIVE] Failed to upload item {item.absolute()}: {e}")
         
         return drive_folder["id"]
 
