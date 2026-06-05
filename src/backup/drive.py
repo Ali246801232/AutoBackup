@@ -1,4 +1,3 @@
-import json
 import threading
 from pathlib import Path
 from pydrive2.auth import GoogleAuth, RefreshError
@@ -11,7 +10,7 @@ class CancelledError(Exception):
     pass
 
 class DriveHandler:
-    def __init__(self, cancel_folder_upload_event: threading.Event = None):
+    def __init__(self):
         try:
             self._authenticate()
         except Exception as e:
@@ -22,7 +21,7 @@ class DriveHandler:
         self._folder_upload_root_id = None
         self._folder_upload_error = None
         self._folder_upload_thread = None
-        self._cancel_folder_upload_event = cancel_folder_upload_event if cancel_folder_upload_event is not None else threading.Event()
+        self._cancel_folder_upload_event = threading.Event()
 
         
     def _authenticate(self):
@@ -50,10 +49,10 @@ class DriveHandler:
         if self.gauth.access_token_expired:
             try:
                 self.gauth.Refresh()
-            except RefreshError:
+            except RefreshError:  # LocalWebserverAuth() calls Refresh() if save_credentials is True so I have to resort to this buffoonery
                 self.gauth.credentials = None
                 save_credentials = self.gauth.settings.get("save_credentials")
-                try:  # LocalWebserverAuth() calls Refresh() if save_credentials is True so I have to resort to this buffoonery
+                try:
                     self.gauth.settings["save_credentials"] = False
                     self.gauth.LocalWebserverAuth()
                 finally:
@@ -206,11 +205,10 @@ class DriveHandler:
 
 
     def start_folder_upload(self, folder_path, drive_parent_id):
-        self._cancel_folder_upload_event.clear()
-
         if self._folder_upload_thread and self._folder_upload_thread.is_alive():
             raise RuntimeError("There is an ongoing folder upload, cancel it with .cancel_folder_upload() to start another")
 
+        self._cancel_folder_upload_event.clear()
         self._folder_upload_root_id = None
         self._folder_upload_error = None
 
@@ -232,7 +230,7 @@ class DriveHandler:
             if undo and self._folder_upload_root_id:
                 self.delete_item(self._folder_upload_root_id)
             
-            if self._folder_upload_error:
+            if self._folder_upload_error and not isinstance(self._folder_upload_error, CancelledError):
                 raise self._folder_upload_error
 
     def wait_for_folder_upload(self):
