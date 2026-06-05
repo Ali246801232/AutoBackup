@@ -1,3 +1,3 @@
-- Test scheduler stuff in `backup/backup.Backup`, especially if it works with manual backups
 - Implement `dashboard/`
 - Implement `AutoBackup/`
+- Write actual unittests instead of manually testing everything
