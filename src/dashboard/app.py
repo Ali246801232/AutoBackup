@@ -1,3 +1,11 @@
+"""TODO:
+- Add a webview in another file in `dashboard/` somehow.
+- Make a dashboard-style GUI.
+    - Load, edit, and save `.json` configurations in `CONFIGS_DIR`.
+    - View, start, and stop backups and schedulers.
+- idk what else yet
+"""
+
 import threading
 from pathlib import Path
 from urllib.parse import quote
@@ -14,8 +22,7 @@ def run_app_in_thread():
 
 app.jinja_env.filters["urlencode"] = lambda s: quote(str(s), safe="")
 
-CONFIGS_DIR = Path(__file__).resolve().parent.parent / "backup_configs"
-BACKUP_MANAGER = None
+CONFIGS_DIR = None
 
 
 @app.route("/")
