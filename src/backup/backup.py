@@ -22,16 +22,15 @@ class Backup:
         drive_upload: bool = False,
         drive_folder_id = None,
         last_backup: datetime|None = None,
-        cancel_event = None
+        cancel_backup_event = None
     ):
-        # Backup config
+        # Backup configuration
         self.sources: List[Path] = [Path(source).resolve() for source in sources]
         self.destination: Path = Path(destination).resolve()
         self.exclusions: List[Path] = [Path(exclusion).resolve() for exclusion in (exclusions or [])]
         self.schedule: timedelta|None = schedule
         self.drive_upload: bool = drive_upload
         self.drive_folder_id = drive_folder_id
-        self.last_backup = last_backup
 
         # Cache for properties
         self._size_bytes: int | None = None
@@ -40,11 +39,60 @@ class Backup:
         # Drive handler
         self.drive_handler: DriveHandler = None
         
-        # Thread stuff
+        # Backup stuff
+        self.last_backup = last_backup
         self._backup_folder = None
         self._backup_error = None
         self._backup_thread = None
-        self._cancel_event = cancel_event if cancel_event is not None else threading.Event()
+        self._cancel_backup_event = cancel_backup_event if cancel_backup_event is not None else threading.Event()
+
+        # Scheduler stuff
+        self._stop_scheduler_event = threading.Event()
+        self._scheduler_thread = None
+        self.scheduler_error_event = threading.Event()
+
+    @property
+    def next_backup(self):
+        """Return the datetime of the next backup if a schedule is set."""
+        if self.schedule is None:
+            return None
+        if self.last_backup is None:
+            return datetime.now()
+        return self.last_backup + self.schedule
+
+    def to_json(self, file_path: str | Path):
+        """Save the backup configuration of this instance to a JSON file."""
+        logger.info(f"[BACKUP] Attempting to save backup details to {file_path}")
+        data = {
+            "sources": [str(p.absolute()) for p in self.sources],
+            "destination": str(self.destination),
+            "exclusions": [str(p.absolute()) for p in self.exclusions] if self.exclusions else [],
+            "schedule": self.schedule.total_seconds() if self.schedule else None,
+            "drive_upload": self.drive_upload,
+            "drive_folder_id": self.drive_folder_id,
+            "last_backup": self.last_backup.isoformat() if self.last_backup else None,
+        }
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+        logger.info(f"[BACKUP] Saved backup details to {file_path}")
+
+    @classmethod
+    def from_json(cls, file_path: str | Path) -> Backup:
+        """Load a backup configuration from a JSON file and update this instance."""
+        logger.info(f"[BACKUP] Attempting to load backup details from {file_path}")
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        instance = cls(
+            sources = [Path(p).resolve() for p in data["sources"]],
+            destination = Path(data["destination"]).resolve(),
+            exclusions = [Path(p).resolve() for p in data.get("exclusions", [])],
+            schedule = timedelta(seconds=data["schedule"]) if data.get("schedule") else None,
+            drive_upload = data.get("drive_upload", False),
+            drive_folder_id = data.get("drive_folder_id"),
+            last_backup = datetime.fromisoformat(data["last_backup"]) if data.get("last_backup") else None
+        )
+        logger.info(f"[BACKUP] Loaded backup details from {file_path}")
+        return instance
 
 
     def _flatten_paths(self, paths: List[Path]) -> List[Path]:
@@ -83,30 +131,7 @@ class Backup:
         logger.debug(f"[BACKUP] Calculated backup file size: {self._size_bytes} B")
         return self._size_bytes
 
-    def verify_details(self):
-        """Verify that the details of the backup are valid; raise an error if not."""
-        if not self.sources:
-            raise ValueError("Backup has no sources.")
-        
-        if not self.destination:
-            raise ValueError("Backup has no destination.")
 
-        for source in self.sources:
-            if not source.exists():
-                raise FileNotFoundError(f"Source at {source.absolute()} does not exist.")
-        
-        for exclusion in self.exclusions:
-            if not exclusion.exists():
-                raise FileNotFoundError(f"Exclusion at {exclusion.absolute()} does not exist.")
-        
-        free_space = shutil.disk_usage(self.destination).free
-        if self.size_bytes > free_space:
-            raise ValueError(f"Destination at {self.destination} does not have enough space to store backup.")
-
-        if self.drive_upload and not self.drive_folder_id:
-            raise ValueError(f"Backup does not have a Drive folder to upload to.")
-
-    
     def _get_destination_paths(self, sources: List[Path], destination: Path) -> List[Path]:
         """Construct and return a list of destination paths given the source paths and a destination folder."""
         if all(s.is_absolute() for s in sources) and len({s.drive for s in sources}) == 1:
@@ -150,7 +175,7 @@ class Backup:
         destination_paths = self._get_destination_paths(sources, destination)
 
         for source, destination_path in zip(sources, destination_paths):
-            if self._cancel_event.is_set():
+            if self._cancel_backup_event.is_set():
                 raise CancelledError("Backup was cancelled")
             
             logger.debug(f"[BACKUP] Attempting to copy source {source}")
@@ -180,9 +205,36 @@ class Backup:
                 logger.error(f"[BACKUP] Failed to copy source {source}: {e}")
 
 
-    def create_backup(self):
+    def verify_details(self):
+        """Verify that the details of the backup are valid; raise an error if not."""
+        if not self.sources:
+            raise ValueError("Backup has no sources.")
+        
+        if not self.destination:
+            raise ValueError("Backup has no destination.")
+
+        for source in self.sources:
+            if not source.exists():
+                raise FileNotFoundError(f"Source at {source.absolute()} does not exist.")
+        
+        for exclusion in self.exclusions:
+            if not exclusion.exists():
+                raise FileNotFoundError(f"Exclusion at {exclusion.absolute()} does not exist.")
+        
+        free_space = shutil.disk_usage(self.destination).free
+        if self.size_bytes > free_space:
+            raise ValueError(f"Destination at {self.destination} does not have enough space to store backup.")
+
+        if self.drive_upload and not self.drive_folder_id:
+            raise ValueError(f"Backup does not have a Drive folder to upload to.")
+
+
+    def create_backup(self, manual=False):
         """User the backup details to create a backup."""
-        if self._cancel_event.is_set():
+        if not manual:
+            self.last_backup = datetime.now()
+
+        if self._cancel_backup_event.is_set():
             raise CancelledError("Backup was cancelled")
 
         logger.info("[BACKUP] Verifying backup details")
@@ -192,7 +244,7 @@ class Backup:
         except Exception as e:
             raise RuntimeError(f"Failed to verify backup details: {e}") from e
 
-        if self._cancel_event.is_set():
+        if self._cancel_backup_event.is_set():
             raise CancelledError("Backup was cancelled")
 
         logger.info("[BACKUP] Attempting to create local backup")
@@ -203,33 +255,34 @@ class Backup:
         except Exception as e:
             raise RuntimeError(f"Failed to create local backup: {e}") from e
 
-        if self._cancel_event.is_set():
+        if self._cancel_backup_event.is_set():
             raise CancelledError("Backup was cancelled")
 
         if self.drive_upload:
             logger.info("[BACKUP] Attempting to upload backup to Google Drive")
             try:
-                self.drive_handler = DriveHandler(cancel_event=self._cancel_event)
+                self.drive_handler = DriveHandler(cancel_folder_upload_event=self._cancel_backup_event)
                 self.drive_handler.start_folder_upload(self._backup_folder, self.drive_folder_id)
                 drive_backup_folder_id = self.drive_handler.wait_for_folder_upload()
                 logger.info(f"[BACKUP] Uploaded backup to Google Drive: https://drive.google.com/drive/folders/{drive_backup_folder_id}")
             except Exception as e:
                 raise RuntimeError(f"Failed to upload backup to Google Drive: {e}") from e
 
-
-    def start_backup(self):
-        """Start creating a backup."""
-        self._cancel_event.clear()
+    def start_backup(self, manual=False):
+        """Start a backup in a thread."""
+        self._cancel_backup_event.clear()
 
         if self._backup_thread and self._backup_thread.is_alive():
-            raise RuntimeError("There is an ongoing backup, cancel it with .cancel() to start another")
+            raise RuntimeError("There is an ongoing backup, cancel it with .cancel_backup()")
+        if self._scheduler_thread and self._scheduler_thread.is_alive():
+            raise RuntimeError("Scheduled backup is currently running")
 
         self._backup_folder = None
         self._backup_error = None
 
         def runner():
             try:
-                self.create_backup()
+                self._backup_folder = self.create_backup(manual=manual)
             except Exception as e:
                 self._backup_error = e
             self._size_bytes = None
@@ -239,9 +292,9 @@ class Backup:
         self._backup_thread.start()
     
     def cancel_backup(self, undo: bool = False):
-        """Cancel an ongoing backup, optionally undo it."""
+        """Cancel an ongoing thread backup, optionally undo it."""
         if self._backup_thread and self._backup_thread.is_alive():
-            self._cancel_event.set()
+            self._cancel_backup_event.set()
 
             if self.drive_handler:
                 self.drive_handler.cancel_folder_upload(undo=undo)
@@ -250,8 +303,12 @@ class Backup:
 
             if undo and self._backup_folder and self._backup_folder.exists():
                 shutil.rmtree(self._backup_folder)
+            
+            if self._backup_error:
+                raise self._backup_error
 
     def wait_for_backup(self):
+        """Wait for the result of the ongoing thread backup."""
         if self._backup_thread:
             self._backup_thread.join()
 
@@ -260,38 +317,49 @@ class Backup:
 
         if self.drive_handler:
             self.drive_handler.wait_for_folder_upload()
+        
+        return self._backup_folder
 
 
-    def to_json(self, file_path: str | Path):
-        """Save the backup configuration of this instance to a JSON file."""
-        logger.info(f"[BACKUP] Attempting to save backup details to {file_path}")
-        data = {
-            "sources": [str(p.absolute()) for p in self.sources],
-            "destination": str(self.destination),
-            "exclusions": [str(p.absolute()) for p in self.exclusions] if self.exclusions else [],
-            "schedule": self.schedule.total_seconds() if self.schedule else None,
-            "drive_upload": self.drive_upload,
-            "drive_folder_id": self.drive_folder_id,
-            "last_backup": self.last_backup.isoformat() if self.last_backup else None,
-        }
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-        logger.info(f"[BACKUP] Saved backup details to {file_path}")
+    def scheduler_loop(self):
+        """Indefinitely wait for and create scheduled backups."""
+        while not self._stop_scheduler_event.is_set():
+            if self.schedule is None:
+                break
+                
+            logger.info(f"[BACKUP] Waiting until the next backup: {self.next_backup}")
+            timeout = max(0.0, (self.next_backup - datetime.now()).total_seconds())
+            if self._stop_scheduler_event.wait(timeout):
+                break
 
-    @classmethod
-    def from_json(cls, file_path: str | Path) -> Backup:
-        """Load a backup configuration from a JSON file and update this instance."""
-        logger.info(f"[BACKUP] Attempting to load backup details from {file_path}")
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        instance = cls(
-            sources = [Path(p).resolve() for p in data["sources"]],
-            destination = Path(data["destination"]).resolve(),
-            exclusions = [Path(p).resolve() for p in data.get("exclusions", [])],
-            schedule = timedelta(seconds=data["schedule"]) if data.get("schedule") else None,
-            drive_upload = data.get("drive_upload", False),
-            drive_folder_id = data.get("drive_folder_id"),
-            last_backup = datetime.fromisoformat(data["last_backup"]) if data.get("last_backup") else None
-        )
-        logger.info(f"[BACKUP] Loaded backup details from {file_path}")
-        return instance
+            logger.info(f"[BACKUP] Starting scheduled backup")
+            try:
+                backup_folder = self.create_backup()
+                self.scheduler_error_event.clear()
+                logger.info(f"[BACKUP] Created scheduled backup: {backup_folder}")
+            except Exception as e:
+                self.scheduler_error_event.set()
+                logger.info(f"[BACKUP] Scheduled backup errored: {e}")
+
+    def start_scheduler(self):
+        """Start a scheduler in a thread."""
+        if self._scheduler_thread and self._scheduler_thread.is_alive():
+            raise RuntimeError("Scheduler is already running, restart with .restart_scheduler()")
+        if self._backup_thread and self._backup_thread.is_alive():
+            raise RuntimeError("Manual backup is currently running")
+        self._stop_scheduler_event.clear()
+        self._scheduler_thread = threading.Thread(target=self.scheduler_loop, daemon=True)
+        self._scheduler_thread.start()
+        logger.info(f"[SCHEDULER] Started scheduler")
+
+    def stop_scheduler(self):
+        """Stop the thread scheduler."""
+        self._stop_scheduler_event.set()
+        if self._scheduler_thread:
+            self._scheduler_thread.join()
+        logger.info(f"[SCHEDULER] Stopped scheduler")
+    
+    def restart_scheduler(self):
+        """Restart the thread scheduler."""
+        self.stop_scheduler()
+        self.start_scheduler()

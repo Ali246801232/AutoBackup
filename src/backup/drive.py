@@ -11,7 +11,7 @@ class CancelledError(Exception):
     pass
 
 class DriveHandler:
-    def __init__(self, cancel_event: threading.Event = None):
+    def __init__(self, cancel_foler_upload_event: threading.Event = None):
         try:
             self._authenticate()
         except Exception as e:
@@ -19,10 +19,10 @@ class DriveHandler:
 
         self.open_folder("root")
         
-        self.folder_upload_result = None
-        self.folder_upload_error = None
+        self._folder_upload_root_id = None
+        self._folder_upload_error = None
         self._folder_upload_thread = None
-        self._cancel_event = cancel_event if cancel_event is not None else threading.Event()
+        self._cancel_foler_upload_event = cancel_foler_upload_event if cancel_foler_upload_event is not None else threading.Event()
 
         
     def _authenticate(self):
@@ -162,18 +162,18 @@ class DriveHandler:
             })
             drive_folder.Upload()
             if is_root:
-                self.folder_upload_result = drive_folder["id"]
+                self._folder_upload_root_id = drive_folder["id"]
         except ApiRequestError as e:
             logger.error(f"[DRIVE] Failed to upload item {folder_path.name}: {e}")
             if is_root:
                 raise RuntimeError(f"Failed to create folder ({folder_path}): {e}") from e
             return None
 
-        if self._cancel_event.is_set():
+        if self._cancel_foler_upload_event.is_set():
             raise CancelledError("Drive folder upload was cancelled")
 
         for item in folder_path.iterdir():
-            if self._cancel_event.is_set():
+            if self._cancel_foler_upload_event.is_set():
                 raise CancelledError("Drive folder upload was cancelled")
             try:
                 if item.is_dir():
@@ -206,19 +206,19 @@ class DriveHandler:
 
 
     def start_folder_upload(self, folder_path, drive_parent_id):
-        self._cancel_event.clear()
+        self._cancel_foler_upload_event.clear()
 
         if self._folder_upload_thread and self._folder_upload_thread.is_alive():
-            raise RuntimeError("There is an ongoing operation, cancel it with .cancel() to start another")
+            raise RuntimeError("There is an ongoing folder upload, cancel it with .cancel_folder_upload() to start another")
 
-        self.folder_upload_result = None
-        self.folder_upload_error = None
+        self._folder_upload_root_id = None
+        self._folder_upload_error = None
 
         def runner():
             try:
-                self.folder_upload_result = self.upload_folder(folder_path, drive_parent_id)
+                self._folder_upload_root_id = self.upload_folder(folder_path, drive_parent_id)
             except Exception as e:
-                self.folder_upload_error = e
+                self._folder_upload_error = e
 
         self._folder_upload_thread = threading.Thread(target=runner, daemon=True)
         self._folder_upload_thread.start()
@@ -226,17 +226,20 @@ class DriveHandler:
     def cancel_folder_upload(self, undo: bool = False):
         """Cancel an ongoing Drive folder upload, optionally undo it."""
         if self._folder_upload_thread and self._folder_upload_thread.is_alive():
-            self._cancel_event.set()
+            self._cancel_foler_upload_event.set()
             self._folder_upload_thread.join()
 
-            if undo and self.folder_upload_result:
-                self.delete_item(self.folder_upload_result)
+            if undo and self._folder_upload_root_id:
+                self.delete_item(self._folder_upload_root_id)
+            
+            if self._folder_upload_error:
+                raise self._folder_upload_error
 
     def wait_for_folder_upload(self):
         if self._folder_upload_thread:
             self._folder_upload_thread.join()
 
-        if self.folder_upload_error:
-            raise self.folder_upload_error
+        if self._folder_upload_error:
+            raise self._folder_upload_error
 
-        return self.folder_upload_result
+        return self._folder_upload_root_id
