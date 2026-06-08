@@ -22,6 +22,7 @@ class DriveHandler:
         self._folder_upload_error = None
         self._folder_upload_thread = None
         self._cancel_folder_upload_event = threading.Event()
+        self._folder_upload_progress_callback = None
 
         
     def _authenticate(self):
@@ -145,6 +146,16 @@ class DriveHandler:
         return file["id"]
 
 
+    @staticmethod
+    def _count_items(path: Path) -> int:
+        """Recursively count all files and subdirectories under a path."""
+        count = 0
+        for item in path.iterdir():
+            count += 1
+            if item.is_dir():
+                count += DriveHandler._count_items(item)
+        return count
+
     def upload_folder(self, folder_path: str | Path, drive_parent_id: str, is_root: bool = True):
         """Upload a local folder to a Drive folder."""
         folder_path = Path(folder_path)
@@ -152,6 +163,10 @@ class DriveHandler:
             raise ValueError(f"Path does not exist ({folder_path})")
         if not folder_path.is_dir():
             raise ValueError(f"Path is not a directory ({folder_path})")
+
+        if is_root:
+            self._total_folder_upload_items = DriveHandler._count_items(folder_path)
+            self._completed_folder_upload_items = 0
 
         try:
             drive_folder = self.drive.CreateFile(metadata={
@@ -185,7 +200,11 @@ class DriveHandler:
                 raise
             except Exception as e:
                 logger.error(f"[DRIVE] Failed to upload item {item.absolute()}: {e}")
-        
+
+            self._completed_folder_upload_items += 1
+            if self._folder_upload_progress_callback and self._total_folder_upload_items > 0:
+                self._folder_upload_progress_callback(self._completed_folder_upload_items, self._total_folder_upload_items)
+
         return drive_folder["id"]
 
 

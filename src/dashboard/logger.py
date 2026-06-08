@@ -7,7 +7,7 @@ log_dir.mkdir(parents=True, exist_ok=True)
 
 log_file = log_dir / f"{datetime.now():%Y-%m-%d_%H-%M-%S}.log"
 
-logger = logging.getLogger("AutoBackup.backup")
+logger = logging.getLogger("AutoBackup.dashboard")
 logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter(

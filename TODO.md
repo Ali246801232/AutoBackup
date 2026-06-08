@@ -1,3 +1,2 @@
 - Implement `dashboard/`
 - Implement `AutoBackup/`
-- Write actual unittests instead of manually testing everything
