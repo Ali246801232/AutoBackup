@@ -5,12 +5,26 @@ import threading
 from pathlib import Path
 from typing import List
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 from .logger import logger
 from .drive import DriveHandler
 
 class CancelledError(Exception):
     pass
+
+_SCHEDULE_UNITS = {
+    "seconds": lambda count: timedelta(seconds=count),
+    "minutes": lambda count: timedelta(minutes=count),
+    "hours": lambda count: timedelta(hours=count),
+    "days": lambda count: timedelta(days=count),
+    "weeks": lambda count: timedelta(weeks=count),
+    "months": lambda count: relativedelta(months=count),
+    "years": lambda count: relativedelta(years=count),
+}
+
+def _schedule_to_timedelta(schedule: dict) -> timedelta|relativedelta:
+    return _SCHEDULE_UNITS[schedule["unit"]](schedule["count"])
 
 class Backup:
     def __init__(
@@ -19,7 +33,7 @@ class Backup:
         sources: List[str|Path],
         destination: str|Path,
         exclusions: List[str|Path] = None,
-        schedule: timedelta|None = None,
+        schedule: dict|None = None,
         drive_upload: bool = False,
         drive_folder_id = None,
         last_scheduled_attempt: datetime|None = None,
@@ -29,7 +43,7 @@ class Backup:
         self.sources: List[Path] = [Path(source).resolve() for source in sources]
         self.destination: Path = Path(destination).resolve()
         self.exclusions: List[Path] = [Path(exclusion).resolve() for exclusion in (exclusions or [])]
-        self.schedule: timedelta|None = schedule
+        self.schedule: dict|None = schedule
         self.drive_upload: bool = drive_upload
         self.drive_folder_id = drive_folder_id
 
@@ -69,7 +83,7 @@ class Backup:
             "sources": [str(p.absolute()) for p in self.sources],
             "destination": str(self.destination.absolute()),
             "exclusions": [str(p.absolute()) for p in self.exclusions] if self.exclusions else [],
-            "schedule": self.schedule.total_seconds() if self.schedule else None,
+            "schedule": self.schedule,
             "drive_upload": self.drive_upload,
             "drive_folder_id": self.drive_folder_id,
             "last_scheduled_attempt": self.last_scheduled_attempt.isoformat() if self.last_scheduled_attempt else None,
@@ -82,7 +96,7 @@ class Backup:
             sources = [Path(p).resolve() for p in data["sources"]],
             destination = Path(data["destination"]).resolve(),
             exclusions = [Path(p).resolve() for p in data.get("exclusions", [])],
-            schedule = timedelta(seconds=data["schedule"]) if data.get("schedule") else None,
+            schedule = data.get("schedule"),
             drive_upload = data.get("drive_upload", False),
             drive_folder_id = data.get("drive_folder_id"),
             last_scheduled_attempt = datetime.fromisoformat(data["last_scheduled_attempt"]) if data.get("last_scheduled_attempt") else None
@@ -115,7 +129,7 @@ class Backup:
             sources = [Path(p).resolve() for p in data["sources"]]
             destination = Path(data["destination"]).resolve()
             exclusions = [Path(p).resolve() for p in data.get("exclusions", [])]
-            schedule = timedelta(seconds=data["schedule"]) if data.get("schedule") else None
+            schedule = data.get("schedule")
             drive_upload = data.get("drive_upload", False)
             drive_folder_id = data.get("drive_folder_id")
             last_scheduled_attempt = datetime.fromisoformat(data["last_scheduled_attempt"]) if data.get("last_scheduled_attempt") else None
@@ -173,7 +187,7 @@ class Backup:
             return None
         if self.last_scheduled_attempt is None:
             return datetime.now()
-        return self.last_scheduled_attempt + self.schedule
+        return self.last_scheduled_attempt + _schedule_to_timedelta(self.schedule)
 
     @property
     def backup_running(self):
@@ -283,28 +297,54 @@ class Backup:
 
     def verify_details(self):
         """Verify that the details of the backup are valid; raise an error if not."""
+        errors = []
+
         if not self.config_name:
-            raise ValueError("Backup has no configuration name.")
-        
+            errors.append("Backup has no configuration name set.")
+        elif not isinstance(self.config_name, str):
+            errors.append("Backup configuration name is not a string")
+
         if not self.sources:
-            raise ValueError("Backup has no sources.")
-        
+            errors.append("Backup has no sources set.")
+        elif not (isinstance(self.sources, list) and all(isinstance(source, Path) for source in self.sources)):
+            errors.append("Backup sources is not a list of paths")
+        else:
+            missing_sources = [str(s.absolute()) for s in self.sources if not s.exists()]
+            if missing_sources:
+                errors.append(f"The following backup sources do not exist: {missing_sources}")
+
         if not self.destination:
-            raise ValueError("Backup has no destination.")
+            errors.append("Backup has no destination set.")
+        elif not self.destination.exists():
+            errors.append(f"Backup destination {self.destination.absolute()} does not exist.")
 
-        for source in self.sources:
-            if not source.exists():
-                raise ValueError(f"Source at {source.absolute()} does not exist.")
-        
-        if not self.destination.exists():
-            raise ValueError(f"Destination {self.destination.absolute()} does not exist.")
-        
-        free_space = shutil.disk_usage(self.destination).free
-        if self.size_bytes > free_space:
-            raise ValueError(f"Destination at {self.destination} does not have enough space to store backup.")
+        if self.schedule is not None:
+            if not isinstance(self.schedule, dict):
+                errors.append("Backup schedule is not a dictionary in the form {\"count\": int, \"unit\": str}")
+            else:
+                count = self.schedule.get("count")
+                unit = self.schedule.get("unit")
+                if not (isinstance(count, int) and isinstance(unit, str)):
+                    errors.append("Backup schedule is not a dictionary in the form {\"count\": int, \"unit\": str}")
+                else:
+                    if count < 1:
+                        errors.append("Backup schedule count must be positive")
+                    if _SCHEDULE_UNITS.get(unit) is None:
+                        errors.append(f"Backup schedule unit is not one of {list(_SCHEDULE_UNITS.keys())}")
 
-        if self.drive_upload and not self.drive_folder_id:
-            raise ValueError(f"Backup does not have a Drive folder to upload to.")
+        if self.destination:
+            try:
+                free_space = shutil.disk_usage(self.destination).free
+                if self.size_bytes > free_space:
+                    errors.append(f"Backup destination at {self.destination} does not have enough space to store backup.")
+            except OSError:
+                errors.append(f"Cannot determine disk usage for destination {self.destination}.")
+
+        if self.drive_upload and not (self.drive_folder_id and isinstance(self.drive_folder_id, str)):
+            errors.append("Backup does not have a Drive folder to upload to.")
+
+        if errors:
+            raise ValueError("\n".join(errors))
 
 
     def create_backup(self) -> dict:

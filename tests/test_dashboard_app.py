@@ -47,44 +47,44 @@ def valid_backup_dict(tmp_source_dir, tmp_dest_dir):
 
 @pytest.fixture
 def created_backup(client, setup_backups, valid_backup_dict):
-    resp = client.post("/api/backups/create_backup", json=valid_backup_dict)
+    resp = client.post("/api/backups/new", json=valid_backup_dict)
     assert resp.status_code == 201
     return resp.get_json()
 
 
 class TestCreateBackup:
     def test_create_success(self, client, setup_backups, valid_backup_dict):
-        resp = client.post("/api/backups/create_backup", json=valid_backup_dict)
+        resp = client.post("/api/backups/new", json=valid_backup_dict)
         assert resp.status_code == 201
         data = resp.get_json()
         assert data["config_name"] == "test_config"
         assert "sources" in data
 
     def test_create_no_body(self, client, setup_backups):
-        resp = client.post("/api/backups/create_backup", content_type="application/json", data="{}")
+        resp = client.post("/api/backups/new", content_type="application/json", data="{}")
         assert resp.status_code == 400
 
     def test_create_no_config_name(self, client, setup_backups):
-        resp = client.post("/api/backups/create_backup", json={"sources": ["/x"], "destination": "/y"})
+        resp = client.post("/api/backups/new", json={"sources": ["/x"], "destination": "/y"})
         assert resp.status_code == 400
         assert "config name" in resp.get_json()["error"].lower()
 
     def test_create_no_sources(self, client, setup_backups):
-        resp = client.post("/api/backups/create_backup", json={"config_name": "x", "destination": "/y"})
+        resp = client.post("/api/backups/new", json={"config_name": "x", "destination": "/y"})
         assert resp.status_code == 400
         assert "source" in resp.get_json()["error"].lower()
 
     def test_create_no_destination(self, client, setup_backups):
-        resp = client.post("/api/backups/create_backup", json={"config_name": "x", "sources": ["/y"]})
+        resp = client.post("/api/backups/new", json={"config_name": "x", "sources": ["/y"]})
         assert resp.status_code == 400
         assert "destination" in resp.get_json()["error"].lower()
 
     def test_create_duplicate(self, client, setup_backups, created_backup, valid_backup_dict):
-        resp = client.post("/api/backups/create_backup", json=valid_backup_dict)
+        resp = client.post("/api/backups/new", json=valid_backup_dict)
         assert resp.status_code == 409
 
     def test_create_verify_failure(self, client, setup_backups):
-        resp = client.post("/api/backups/create_backup", json={
+        resp = client.post("/api/backups/new", json={
             "config_name": "bad",
             "sources": ["/nonexistent_source"],
             "destination": "/nonexistent_dest",
@@ -92,7 +92,7 @@ class TestCreateBackup:
         assert resp.status_code == 400
 
     def test_create_saves_to_disk(self, client, setup_backups, valid_backup_dict):
-        resp = client.post("/api/backups/create_backup", json=valid_backup_dict)
+        resp = client.post("/api/backups/new", json=valid_backup_dict)
         assert resp.status_code == 201
         config_file = setup_backups / "test_config.json"
         assert config_file.exists()
@@ -131,7 +131,7 @@ class TestUpdateBackup:
     def test_update_name(self, client, setup_backups, created_backup, valid_backup_dict):
         update = dict(valid_backup_dict)
         update["config_name"] = "renamed"
-        resp = client.post("/api/backups/test_config/save_backup", json=update)
+        resp = client.post("/api/backups/test_config/edit", json=update)
         assert resp.status_code == 200
 
         import dashboard.app
@@ -141,19 +141,19 @@ class TestUpdateBackup:
     def test_update_name_conflict(self, client, setup_backups, created_backup, valid_backup_dict):
         d2 = dict(valid_backup_dict)
         d2["config_name"] = "other"
-        client.post("/api/backups/create_backup", json=d2)
+        client.post("/api/backups/new", json=d2)
 
         update = dict(valid_backup_dict)
         update["config_name"] = "other"
-        resp = client.post("/api/backups/test_config/save_backup", json=update)
+        resp = client.post("/api/backups/test_config/edit", json=update)
         assert resp.status_code == 409
 
     def test_update_invalid_data(self, client, setup_backups, created_backup):
-        resp = client.post("/api/backups/test_config/save_backup", json={"config_name": "test_config", "sources": []})
+        resp = client.post("/api/backups/test_config/edit", json={"config_name": "test_config", "sources": []})
         assert resp.status_code == 500
 
     def test_update_not_found(self, client, setup_backups):
-        resp = client.post("/api/backups/nonexistent/save_backup", json={"config_name": "x"})
+        resp = client.post("/api/backups/nonexistent/edit", json={"config_name": "x"})
         assert resp.status_code == 404
 
     def test_update_rolls_back_on_failure(self, client, setup_backups, created_backup, valid_backup_dict):
@@ -161,7 +161,7 @@ class TestUpdateBackup:
         update = dict(valid_backup_dict)
         update["config_name"] = "will_fail"
         update["destination"] = "/nonexistent/destination"
-        resp = client.post("/api/backups/test_config/save_backup", json=update)
+        resp = client.post("/api/backups/test_config/edit", json=update)
         assert resp.status_code == 500
 
         assert "test_config" in dashboard.app.BACKUPS
@@ -171,7 +171,7 @@ class TestUpdateBackup:
         import dashboard.app
         update = dict(valid_backup_dict)
         update["config_name"] = "renamed"
-        resp = client.post("/api/backups/test_config/save_backup", json=update)
+        resp = client.post("/api/backups/test_config/edit", json=update)
         assert resp.status_code == 200
         assert "renamed" in dashboard.app.BACKUPS
         assert dashboard.app.BACKUPS["renamed"].config_name == "renamed"
@@ -179,20 +179,20 @@ class TestUpdateBackup:
 
 class TestDeleteBackup:
     def test_delete(self, client, setup_backups, created_backup):
-        resp = client.post("/api/backups/test_config/delete_backup")
+        resp = client.post("/api/backups/test_config/delete")
         assert resp.status_code == 200
 
         import dashboard.app
         assert "test_config" not in dashboard.app.BACKUPS
 
     def test_delete_not_found(self, client, setup_backups):
-        resp = client.post("/api/backups/nonexistent/delete_backup")
+        resp = client.post("/api/backups/nonexistent/delete")
         assert resp.status_code == 404
 
     def test_delete_removes_file(self, client, setup_backups, created_backup):
         config_file = setup_backups / "test_config.json"
         assert config_file.exists()
-        resp = client.post("/api/backups/test_config/delete_backup")
+        resp = client.post("/api/backups/test_config/delete")
         assert resp.status_code == 200
         assert not config_file.exists()
 
@@ -255,7 +255,7 @@ class TestPages:
     def test_config_editor_page(self, client):
         import dashboard.app
         with patch.object(dashboard.app, "render_template", return_value="<html>editor</html>"):
-            resp = client.get("/config_editor")
+            resp = client.get("/edit_config/test_config")
             assert resp.status_code == 200
 
 
@@ -313,7 +313,7 @@ class TestErrorHandling:
     def test_create_server_error(self, client, setup_backups):
         import dashboard.app
         with patch.object(dashboard.app.Backup, "from_dict", side_effect=Exception("unexpected")):
-            resp = client.post("/api/backups/create_backup", json={
+            resp = client.post("/api/backups/new", json={
                 "config_name": "x", "sources": ["/a"], "destination": "/b",
             })
             assert resp.status_code == 500

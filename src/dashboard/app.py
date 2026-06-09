@@ -20,7 +20,6 @@ BACKUP_CONFIGS_DIR: Path = None
 BACKUPS: dict[str, Backup] = None
 
 
-
 app = Flask(__name__)
 
 app.jinja_env.filters["urlencode"] = lambda s: quote(str(s), safe="")
@@ -29,10 +28,9 @@ app.jinja_env.filters["urlencode"] = lambda s: quote(str(s), safe="")
 def page_index():
     return render_template("index.html")
 
-@app.route("/config_editor")
-def page_config_editor():
-    return render_template("config_editor.html")
-
+@app.route("/edit_config/<config_name>")
+def page_config_editor(config_name):
+    return render_template("edit_config.html", config_name=config_name)
 
 
 @app.route("/api/backups/")
@@ -46,6 +44,19 @@ def api_backups():
     except Exception as e:
         logger.error(f"[FLASK APP] Failed to get backups: {e}")
         return jsonify({"error": f"Error while getting backups: {e}"}), 500
+
+@app.route("/api/backups/<config_name>/status")
+def api_backup_status(config_name):
+    logger.info(f"[FLASK APP] Attempting to get backup status (/api/backups/{config_name}/status)")
+    backup = BACKUPS.get(config_name)
+    if not backup:
+        abort(404, f"No backup found for {config_name}")
+    try:
+        return jsonify(backup.status)
+    except Exception as e:
+        logger.error(f"[FLASK APP] Failed to get status for {config_name}: {e}")
+        return jsonify({"error": f"Error while getting status for {config_name}: {e}"}), 500
+
 
 @app.route("/api/backups/<config_name>/start_backup", methods=["POST"])
 def api_start_backup(config_name):
@@ -99,21 +110,10 @@ def api_stop_scheduler(config_name):
         logger.error(f"[FLASK APP] Failed to stop scheduler for {config_name}: {e}")
         return jsonify({"error": f"Error while stopping scheduler for {config_name}: {e}"}), 500
 
-@app.route("/api/backups/<config_name>/status")
-def api_backup_status(config_name):
-    logger.info(f"[FLASK APP] Attempting to get backup status (/api/backups/{config_name}/status)")
-    backup = BACKUPS.get(config_name)
-    if not backup:
-        abort(404, f"No backup found for {config_name}")
-    try:
-        return jsonify(backup.status)
-    except Exception as e:
-        logger.error(f"[FLASK APP] Failed to get status for {config_name}: {e}")
-        return jsonify({"error": f"Error while getting status for {config_name}: {e}"}), 500
 
-@app.route("/api/backups/<config_name>/save_backup", methods=["POST"])
-def api_update_backup(config_name):
-    logger.info(f"[FLASK APP] Attempting to update backup (/api/backups/{config_name}/save_backup)")
+@app.route("/api/backups/<config_name>/edit", methods=["POST"])
+def api_edit_backup(config_name):
+    logger.info(f"[FLASK APP] Attempting to edit backup (/api/backups/{config_name}/edit)")
     backup = BACKUPS.get(config_name)
     if not backup:
         abort(404, f"No backup found for {config_name}")
@@ -147,31 +147,9 @@ def api_update_backup(config_name):
         logger.error(f"[FLASK APP] Failed to update backup for {config_name}: {e}")
         return jsonify({"error": f"Error while updating backup for {config_name}: {e}"}), 500
 
-@app.route("/api/backups/<config_name>/delete_backup", methods=["POST"])
-def api_delete_backup(config_name):
-    logger.info(f"[FLASK APP] Attempting to delete backup (/api/backups/{config_name}/delete_backup)")
-    backup = BACKUPS.get(config_name)
-    if not backup:
-        abort(404, f"No backup found for {config_name}")
-
-    try:
-        if backup.scheduler_running:
-            backup.stop_scheduler()
-        if backup.backup_running:
-            backup.cancel_backup()
-
-        del BACKUPS[config_name]
-
-        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
-        config_file.unlink(missing_ok=True)
-        return jsonify({"status": "backup deleted"}), 200
-    except Exception as e:
-        logger.error(f"[FLASK APP] Failed to delete backup for {config_name}: {e}")
-        return jsonify({"error": f"Error while deleting backup for {config_name}: {e}"}), 500
-
-@app.route("/api/backups/create_backup", methods=["POST"])
-def api_create_backup():
-    logger.info("[FLASK APP] Attempting to create backup (/api/backups/create_backup)")
+@app.route("/api/backups/new", methods=["POST"])
+def api_new_backup():
+    logger.info("[FLASK APP] Attempting to create backup (/api/backups/new)")
 
     try:
         data = request.get_json()
@@ -202,6 +180,28 @@ def api_create_backup():
     except Exception as e:
         logger.error(f"[FLASK APP] Failed to create backup: {e}")
         return jsonify({"error": f"Error while creating backup: {e}"}), 500
+
+@app.route("/api/backups/<config_name>/delete", methods=["POST"])
+def api_delete_backup(config_name):
+    logger.info(f"[FLASK APP] Attempting to delete backup (/api/backups/{config_name}/delete)")
+    backup = BACKUPS.get(config_name)
+    if not backup:
+        abort(404, f"No backup found for {config_name}")
+
+    try:
+        if backup.scheduler_running:
+            backup.stop_scheduler()
+        if backup.backup_running:
+            backup.cancel_backup()
+
+        del BACKUPS[config_name]
+
+        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
+        config_file.unlink(missing_ok=True)
+        return jsonify({"status": "backup deleted"}), 200
+    except Exception as e:
+        logger.error(f"[FLASK APP] Failed to delete backup for {config_name}: {e}")
+        return jsonify({"error": f"Error while deleting backup for {config_name}: {e}"}), 500
 
 
 def load_backups(configs_dir: str|Path) -> dict[str, Backup]:

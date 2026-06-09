@@ -22,9 +22,8 @@ class TestInit:
         assert b.drive_handler is None
 
     def test_with_schedule(self, tmp_source_dir, tmp_dest_dir):
-        td = timedelta(hours=2)
-        b = Backup("sched", [tmp_source_dir], tmp_dest_dir, schedule=td)
-        assert b.schedule == td
+        b = Backup("sched", [tmp_source_dir], tmp_dest_dir, schedule={"count": 2, "unit": "hours"})
+        assert b.schedule == {"count": 2, "unit": "hours"}
 
     def test_with_exclusions(self, tmp_source_dir, tmp_dest_dir):
         excl = [tmp_source_dir / "file1.txt"]
@@ -53,9 +52,9 @@ class TestSerialization:
         assert d["last_scheduled_attempt"] is None
 
     def test_to_dict_with_schedule(self, tmp_source_dir, tmp_dest_dir):
-        b = Backup("s", [tmp_source_dir], tmp_dest_dir, schedule=timedelta(seconds=90))
+        b = Backup("s", [tmp_source_dir], tmp_dest_dir, schedule={"count": 90, "unit": "seconds"})
         d = b.to_dict()
-        assert d["schedule"] == 90.0
+        assert d["schedule"] == {"count": 90, "unit": "seconds"}
 
     def test_to_dict_with_last_attempt(self, tmp_source_dir, tmp_dest_dir):
         dt = datetime(2025, 6, 1, 12, 0, 0)
@@ -75,13 +74,13 @@ class TestSerialization:
             "sources": [str(tmp_source_dir)],
             "destination": str(tmp_dest_dir),
             "exclusions": [str(tmp_source_dir / "file1.txt")],
-            "schedule": 60,
+            "schedule": {"count": 60, "unit": "seconds"},
             "drive_upload": True,
             "drive_folder_id": "id123",
             "last_scheduled_attempt": "2025-06-01T12:00:00",
         }
         b = Backup.from_dict(data)
-        assert b.schedule == timedelta(seconds=60)
+        assert b.schedule == {"count": 60, "unit": "seconds"}
         assert b.drive_upload is True
         assert b.drive_folder_id == "id123"
         assert b.last_scheduled_attempt == datetime(2025, 6, 1, 12, 0, 0)
@@ -120,7 +119,7 @@ class TestSerialization:
             "sources": [str(tmp_source_dir), str(new_src2)],
             "destination": str(tmp_dest_dir),
             "exclusions": [],
-            "schedule": 120,
+            "schedule": {"count": 120, "unit": "seconds"},
             "drive_upload": True,
             "drive_folder_id": "new_id",
             "last_scheduled_attempt": None,
@@ -128,7 +127,7 @@ class TestSerialization:
         backup_instance.update_from_dict(data)
         assert backup_instance.config_name == "renamed"
         assert len(backup_instance.sources) == 2
-        assert backup_instance.schedule == timedelta(seconds=120)
+        assert backup_instance.schedule == {"count": 120, "unit": "seconds"}
         assert backup_instance.drive_upload is True
 
     def test_update_from_dict_missing_key(self, backup_instance):
@@ -237,14 +236,14 @@ class TestNextBackup:
         assert backup_instance.next_backup is None
 
     def test_no_last_attempt(self, tmp_source_dir, tmp_dest_dir):
-        b = Backup("t", [tmp_source_dir], tmp_dest_dir, schedule=timedelta(hours=1))
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir, schedule={"count": 1, "unit": "hours"})
         nb = b.next_backup
         assert nb is not None
         assert (datetime.now() - nb).total_seconds() < 1
 
     def test_with_last_attempt(self, tmp_source_dir, tmp_dest_dir):
         dt = datetime.now() - timedelta(minutes=30)
-        b = Backup("t", [tmp_source_dir], tmp_dest_dir, schedule=timedelta(hours=1), last_scheduled_attempt=dt)
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir, schedule={"count": 1, "unit": "hours"}, last_scheduled_attempt=dt)
         expected = dt + timedelta(hours=1)
         assert abs((b.next_backup - expected).total_seconds()) < 1
 
@@ -404,12 +403,12 @@ class TestVerifyDetails:
     def test_source_not_exists(self, backup_instance):
         missing = Path("/nonexistent/path")
         backup_instance.sources = [missing]
-        with pytest.raises(ValueError, match="does not exist"):
+        with pytest.raises(ValueError, match="not exist"):
             backup_instance.verify_details()
 
     def test_destination_not_exists(self, backup_instance):
         backup_instance.destination = Path("/nonexistent/dest")
-        with pytest.raises(ValueError, match="does not exist"):
+        with pytest.raises(ValueError, match="not exist"):
             backup_instance.verify_details()
 
     def test_drive_upload_no_folder_id(self, tmp_source_dir, tmp_dest_dir):
@@ -520,14 +519,14 @@ class TestScheduler:
         assert backup_instance.scheduler_running is False
 
     def test_start_and_stop(self, tmp_source_dir, tmp_dest_dir):
-        b = Backup("sched", [tmp_source_dir], tmp_dest_dir, schedule=timedelta(hours=1))
+        b = Backup("sched", [tmp_source_dir], tmp_dest_dir, schedule={"count": 1, "unit": "hours"})
         b.start_scheduler()
         assert b.scheduler_running is True
         b.stop_scheduler()
         assert b.scheduler_running is False
 
     def test_double_start_fails(self, tmp_source_dir, tmp_dest_dir):
-        b = Backup("s", [tmp_source_dir], tmp_dest_dir, schedule=timedelta(hours=1))
+        b = Backup("s", [tmp_source_dir], tmp_dest_dir, schedule={"count": 1, "unit": "hours"})
         b.start_scheduler()
         with pytest.raises(RuntimeError, match="already running"):
             b.start_scheduler()
@@ -537,14 +536,14 @@ class TestScheduler:
         backup_instance.stop_scheduler()
 
     def test_start_while_manual_ongoing(self, tmp_source_dir, tmp_dest_dir):
-        b = Backup("x", [tmp_source_dir], tmp_dest_dir, schedule=timedelta(hours=1))
+        b = Backup("x", [tmp_source_dir], tmp_dest_dir, schedule={"count": 1, "unit": "hours"})
         b._manual_backup_ongoing = True
         with pytest.raises(RuntimeError, match="Manual backup is currently running"):
             b.start_scheduler()
         b._manual_backup_ongoing = False
 
     def test_wait_for_scheduler(self, tmp_source_dir, tmp_dest_dir):
-        b = Backup("w", [tmp_source_dir], tmp_dest_dir, schedule=timedelta(hours=1))
+        b = Backup("w", [tmp_source_dir], tmp_dest_dir, schedule={"count": 1, "unit": "hours"})
         b.start_scheduler()
         b.stop_scheduler()
         b.wait_for_scheduler()
@@ -557,7 +556,7 @@ class TestScheduler:
         backup_instance.run_scheduler()
 
     def test_scheduler_runs_backup(self, tmp_source_dir, tmp_dest_dir):
-        b = Backup("run", [tmp_source_dir], tmp_dest_dir, schedule=timedelta(seconds=1))
+        b = Backup("run", [tmp_source_dir], tmp_dest_dir, schedule={"count": 1, "unit": "seconds"})
         b.start_scheduler()
         time.sleep(0.05)
         b.stop_scheduler()
