@@ -463,7 +463,7 @@ class Backup:
         if self._backup_thread and self._backup_thread.is_alive():
             self._backup_thread.join()
 
-        if self._backup_error:
+        if self._backup_error and not isinstance(self._backup_error, CancelledError):
             raise self._backup_error
 
         if self.drive_handler:

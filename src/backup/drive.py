@@ -256,7 +256,7 @@ class DriveHandler:
         if self._folder_upload_thread:
             self._folder_upload_thread.join()
 
-        if self._folder_upload_error:
+        if self._folder_upload_error and not isinstance(self._folder_upload_error, CancelledError):
             raise self._folder_upload_error
 
         return self._folder_upload_root_id

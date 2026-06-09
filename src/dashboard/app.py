@@ -1,13 +1,10 @@
 """TODO:
-- Add a webview in another file in `dashboard/` somehow.
-- Make a dashboard-style GUI.
+- Make a dashboard-style GUI:
     - Load, edit, and save `.json` configurations in `CONFIGS_DIR`.
     - View, start, and stop backups and schedulers.
 - idk what else yet
 """
-import argparse
 from pathlib import Path
-from waitress import serve
 from urllib.parse import quote
 from flask import Flask, render_template, abort, jsonify, request
 from werkzeug.exceptions import HTTPException
@@ -202,83 +199,3 @@ def api_delete_backup(config_name):
     except Exception as e:
         logger.error(f"[FLASK APP] Failed to delete backup for {config_name}: {e}")
         return jsonify({"error": f"Error while deleting backup for {config_name}: {e}"}), 500
-
-
-def load_backups(configs_dir: str|Path) -> dict[str, Backup]:
-    """Return a dictionary of backups loaded from a directory of config JSONs."""
-    backups = {}
-    configs_dir = Path(configs_dir).resolve()
-    if not(configs_dir.exists() and configs_dir.is_dir()):
-        raise ValueError(f"No config files directory at {configs_dir.absolute()}")
-    for config_file in configs_dir.iterdir():
-        if not(config_file.is_file() and config_file.suffix == ".json"):
-            continue
-        backups[config_file.stem] = Backup.from_json(config_file)
-    return backups
-
-def save_backups(backups: dict[str, Backup], configs_dir: str|Path):
-    """Save a dictionary of backups to a directory as config JSONs."""
-    configs_dir = Path(configs_dir).resolve()
-    if not(configs_dir.exists() and configs_dir.is_dir()):
-        raise ValueError(f"No config files directory at {configs_dir.absolute()}")
-    for config_name, backup in backups.items():
-        config_file = configs_dir / f"{config_name}.json"
-        backup.to_json(config_file)
-
-def main(configs_dir: str, port: int):
-    global BACKUP_CONFIGS_DIR, BACKUPS
-
-    # Load backups
-    logger.info("Attempting to load backups")
-    try:
-        BACKUP_CONFIGS_DIR = Path(configs_dir).resolve()
-        BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
-        BACKUPS = load_backups(BACKUP_CONFIGS_DIR)
-        logger.info(f"[FLASK APP] Loaded {len(BACKUPS)} backups")
-    except Exception as e:
-        logger.error(f"[FLASK APP] Error while loading backups: {e}")
-        raise
-
-    # Start schedulers
-    logger.info("Attempting to start schedulers")
-    for config_name, backup in BACKUPS.items():
-        try:
-            backup.start_scheduler()
-            logger.info(f"[FLASK APP] Started scheduler for backup {config_name}")
-        except Exception as e:
-            logger.error(f"[FLASK APP] Error while starting scheduler for backup {config_name}: {e}")
-
-    # Run flask app
-    logger.info("Attempting to start flask app")
-    try:
-        host = "127.0.0.1"
-        serve(app, host=host, port=port)
-    except Exception as e:
-        logger.error(f"[FLASK APP] Error while running flask app: {e}")
-        raise
-
-    # Clean up
-    finally:
-        logger.info("Attempting to clean up")
-        if BACKUPS is not None:
-            # Stop all schedulers and cancel all backups
-            for config_name, backup in BACKUPS.items():
-                try:
-                    backup.stop_scheduler()
-                    backup.cancel_backup()
-                except Exception as e:
-                    logger.error(f"[FLASK APP] Error while stopping backup {config_name} during cleanup: {e}")
-
-            # Save all backups
-            if BACKUP_CONFIGS_DIR is not None:
-                try:
-                    save_backups(BACKUPS, BACKUP_CONFIGS_DIR)
-                except Exception as e:
-                    logger.error(f"[FLASK APP] Error while saving backups during cleanup: {e}")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Flask webapp for AutoBackup")
-    parser.add_argument("--configs-dir", type=str, required=True, help="Directory for backup configurations")
-    parser.add_argument("--port", type=int, required=False, help="Port of 127.0.0.1 to host flask app on", default=5000)
-    args = parser.parse_args()
-    main(args.configs_dir, args.port)

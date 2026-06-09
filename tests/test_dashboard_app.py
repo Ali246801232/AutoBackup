@@ -259,9 +259,19 @@ class TestPages:
             assert resp.status_code == 200
 
 
+def _import_main_func(name):
+    """Import *name* from ``dashboard.__main__``, mocking GUI-only deps first."""
+    import sys
+    from unittest.mock import MagicMock
+    for mod in ("pystray", "PIL", "PIL.Image", "webview"):
+        sys.modules.setdefault(mod, MagicMock())
+    from dashboard.__main__ import load_backups, save_backups
+    return load_backups if name == "load_backups" else save_backups
+
+
 class TestLoadBackups:
     def test_load_backups(self, tmp_path):
-        from dashboard.app import load_backups
+        load_backups = _import_main_func("load_backups")
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
         config = {
@@ -280,7 +290,7 @@ class TestLoadBackups:
         assert backups["loaded"].config_name == "loaded"
 
     def test_load_backups_skips_non_json(self, tmp_path):
-        from dashboard.app import load_backups
+        load_backups = _import_main_func("load_backups")
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
         (configs_dir / "not_json.txt").write_text("{}")
@@ -288,14 +298,14 @@ class TestLoadBackups:
         assert result == {}
 
     def test_load_backups_dir_not_exist(self, tmp_path):
-        from dashboard.app import load_backups
+        load_backups = _import_main_func("load_backups")
         with pytest.raises(ValueError, match="No config files directory at"):
             load_backups(tmp_path / "nonexistent")
 
 
 class TestSaveBackups:
     def test_save_backups(self, tmp_path, backup_instance):
-        from dashboard.app import save_backups
+        from dashboard.__main__ import save_backups
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
         save_backups({"test": backup_instance}, configs_dir)
@@ -304,7 +314,7 @@ class TestSaveBackups:
         assert data["config_name"] == "test_backup"
 
     def test_save_backups_dir_not_exist(self, tmp_path, backup_instance):
-        from dashboard.app import save_backups
+        from dashboard.__main__ import save_backups
         with pytest.raises(ValueError, match="No config files directory at"):
             save_backups({"test": backup_instance}, tmp_path / "nonexistent")
 
