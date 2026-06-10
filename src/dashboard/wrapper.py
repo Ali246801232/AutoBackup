@@ -12,6 +12,9 @@ TRAY_ICON = None
 WINDOW_VISIBLE = True
 QUITTING = False
 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+ICON_PATH = str(STATIC_DIR / "img" / "logo.png")
+
 
 def load_backups(configs_dir: str | Path) -> dict[str, Backup]:
     """Return a dictionary of backups loaded from a directory of config JSONs."""
@@ -75,8 +78,6 @@ def cleanup_backups():
                 backup.stop_scheduler()
                 backup.cancel_backup()
                 logger.info(f"[DASHBOARD] Stopped backup {config_name}")
-            except backup:
-                pass
             except Exception as e:
                 logger.error(
                     f"[DASHBOARD] Error while stopping backup {config_name} during cleanup: {e}"
@@ -88,9 +89,7 @@ def cleanup_backups():
                 save_backups(BACKUPS, BACKUP_CONFIGS_DIR)
                 logger.info(f"[DASHBOARD] Saved backups to {BACKUP_CONFIGS_DIR}")
             except Exception as e:
-                logger.error(
-                    f"[DASHBOARD] Error while saving backups during cleanup: {e}"
-                )
+                logger.error(f"[DASHBOARD] Error while saving backups during cleanup: {e}")
 
 
 def toggle_window(icon, item):
@@ -100,9 +99,11 @@ def toggle_window(icon, item):
         if WINDOW_VISIBLE:
             WINDOW.hide()
             WINDOW_VISIBLE = False
+            logger.info("[DASHBOARD] Webview window hidden")
         else:
             WINDOW.show()
             WINDOW_VISIBLE = True
+            logger.info("[DASHBOARD] Webview window shown")
         icon.update_menu()
 
 def on_window_closing():
@@ -115,11 +116,13 @@ def on_window_closing():
         WINDOW_VISIBLE = False
         if TRAY_ICON:
             TRAY_ICON.update_menu()
+        logger.info("[DASHBOARD] Webview window hidden")
     return False
 
 def quit_application(icon, item):
     """Callback for the quit option on the tray menu."""
     global WINDOW, TRAY_ICON, QUITTING
+    logger.info("[DASHBOARD] Quit started")
     QUITTING = True
     if TRAY_ICON:
         TRAY_ICON.stop()
@@ -130,9 +133,11 @@ def setup_webview():
     """Create the webview window and start the tray icon."""
     global WINDOW, TRAY_ICON, app
 
+    logger.info("[DASHBOARD] Creating webview window")
     WINDOW = webview.create_window("AutoBackup", app, width=1280, height=720, hidden=False)
     WINDOW.events.closing += on_window_closing
 
+    logger.info("[DASHBOARD] Creating tray icon")
     menu = pystray.Menu(
         pystray.MenuItem(
             text=lambda item: "Hide Window" if WINDOW_VISIBLE else "Show Window",
@@ -144,10 +149,9 @@ def setup_webview():
             action=quit_application
         ),
     )
-
     TRAY_ICON = pystray.Icon(
         "AutoBackupTray",
-        Image.new("RGB", (64, 64), color="blue"),
+        Image.open(ICON_PATH),
         "AutoBackup",
         menu
     )
@@ -161,15 +165,15 @@ def cleanup_webview():
         WINDOW.destroy()
 
 
-def main():
+def run_app():
+    logger.info("[DASHBOARD] Running webapp")
     try:
         setup_backups()
         setup_webview()
         TRAY_ICON.run_detached()
         webview.start()
+    except Exception as e:
+        logger.error(f"Error while running webapp: {e}")
     finally:
         cleanup_backups()
         cleanup_webview()
-
-if __name__ == "__main__":
-    main()

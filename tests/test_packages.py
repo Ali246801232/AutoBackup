@@ -17,8 +17,8 @@ class TestDashboard:
         assert dashboard is not None
 
     def test_import_dashboard_main(self):
-        import dashboard.__main__
-        assert dashboard.__main__ is not None
+        from dashboard import run_app
+        assert run_app is not None
 
 
 class TestAutoBackup:
