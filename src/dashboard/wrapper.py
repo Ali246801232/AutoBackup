@@ -7,6 +7,8 @@ from .app import BACKUP_CONFIGS_DIR, BACKUPS, app
 from .logger import logger
 from backup import Backup
 
+DEFAULT_CONFIGS_DIR = Path.home() / "backup_configs"
+
 WINDOW = None
 TRAY_ICON = None
 WINDOW_VISIBLE = True
@@ -164,6 +166,14 @@ def cleanup_webview():
     if WINDOW:
         WINDOW.destroy()
 
+
+def set_backup_configs_dir(dir_path: str|Path = None):
+    global BACKUP_CONFIGS_DIR, DEFAULT_CONFIGS_DIR
+    if dir_path is None:
+        dir_path = DEFAULT_CONFIGS_DIR
+    dir_path = Path(dir_path).resolve()
+    dir_path.mkdir(parents=True, exist_ok=True)
+    BACKUP_CONFIGS_DIR = dir_path
 
 def run_app():
     logger.info("[DASHBOARD] Running webapp")

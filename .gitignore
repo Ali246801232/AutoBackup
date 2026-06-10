@@ -223,5 +223,5 @@ __marimo__/
 client_secrets.json
 credentials.json
 backup_configs/
-testing/
+manual_testing/
 logs/
