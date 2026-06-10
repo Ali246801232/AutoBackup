@@ -1,9 +1,3 @@
-"""TODO:
-- Make a dashboard-style GUI:
-    - Load, edit, and save `.json` configurations in `CONFIGS_DIR`.
-    - View, start, and stop backups and schedulers.
-- idk what else yet
-"""
 from pathlib import Path
 from urllib.parse import quote
 from flask import Flask, render_template, abort, jsonify, request
@@ -25,9 +19,13 @@ app.jinja_env.filters["urlencode"] = lambda s: quote(str(s), safe="")
 def page_index():
     return render_template("index.html")
 
-@app.route("/edit_config/<config_name>")
-def page_config_editor(config_name):
-    return render_template("edit_config.html", config_name=config_name)
+@app.route("/edit_backup/<config_name>")
+def page_edit_backup(config_name):
+    return render_template("edit_backup.html", config_name=config_name)
+
+@app.route("/new_backup")
+def page_new_backup():
+    return render_template("new_backup.html")
 
 
 @app.route("/api/backups/")

@@ -252,10 +252,16 @@ class TestPages:
             resp = client.get("/")
             assert resp.status_code == 200
 
-    def test_config_editor_page(self, client):
+    def test_edit_backup_page(self, client):
         import dashboard.app
         with patch.object(dashboard.app, "render_template", return_value="<html>editor</html>"):
-            resp = client.get("/edit_config/test_config")
+            resp = client.get("/edit_backup/test_config")
+            assert resp.status_code == 200
+
+    def test_new_backup_page(self, client):
+        import dashboard.app
+        with patch.object(dashboard.app, "render_template", return_value="<html>new</html>"):
+            resp = client.get("/new_backup")
             assert resp.status_code == 200
 
 

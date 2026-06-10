@@ -1,2 +1,27 @@
-- Implement `dashboard/`
-- Implement `AutoBackup/`
+- Implement `dashboard/`:
+    - `static/style.css`: i havent decided what i want it to look like yet
+    - `templates/index.html`: Home page and a dashboard for all loaded backups
+        - Bigass logo and title at the top
+        - List of cards with one row per backup:
+            - Config name
+            - Show whether scheduler running
+            - Progress bar:
+                - Greyed out if not ongoing
+                - Progress message if ongoing and has progress message
+                - Progress bar if ongoing and has progress percentage
+                - Progress bar on idle animation if ongoing but no progress percentage
+            - Buttons:
+                - Start/stop backup
+                - Start/stop scheduler (nonexistent if backup has no scheduler)
+                - Edit config (go to `/edit_backup/<config_name>`)
+        - Search bar to search by config name, updates as you type
+        - Floating new backup button at bottom right
+    - `templates/config_form.html`: Input backup config details and save as a dict
+        - List of paths for sources (files and folders) with a browse button
+        - List of paths for exclusions (files and folders) with a browse button
+        - Destination folder path with a browse button
+        - Schedule input with positive integer input for count and dropdown for unit
+        - Drive upload checkbox
+        - Drive folder name with browse button (name only for display, returns ID), greyed out if checkbox unchecked
+        - Submit button that sends the dictionary to wherever
+    - `templates/edit_backup` and `templates_new_backup`: Use `config_form.html` to edit an existing backup or create a new one
