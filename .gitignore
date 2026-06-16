@@ -219,9 +219,14 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Visual Studio Code
+.vscode/
 
+# Built Visual Studio Code Extensions
+*.vsix
+
+# Project-specific
 client_secrets.json
 credentials.json
-backup_configs/
 manual_testing/
 logs/

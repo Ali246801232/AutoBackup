@@ -11,13 +11,6 @@ class CancelledError(Exception):
 
 class DriveHandler:
     def __init__(self):
-        try:
-            self._authenticate()
-        except Exception as e:
-            raise RuntimeError(f"Failed to authenticate and authorize with Google Drive: {e}") from e
-
-        self.open_folder("root")
-        
         self._folder_upload_root_id = None
         self._folder_upload_error = None
         self._folder_upload_thread = None
@@ -25,7 +18,7 @@ class DriveHandler:
         self._folder_upload_progress_callback = None
 
         
-    def _authenticate(self):
+    def authenticate(self):
         """Authenticate using saved credentials, otherwise with local web server."""
         self.script_dir = Path(__file__).parent.resolve()
         client_config_file = self.script_dir / "client_secrets.json"
@@ -64,6 +57,7 @@ class DriveHandler:
         self.gauth.SaveCredentialsFile()
 
         self.drive = GoogleDrive(self.gauth)
+        self.open_folder("root")
 
 
     def open_folder(self, folder_id: str):

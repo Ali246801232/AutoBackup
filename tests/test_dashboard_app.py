@@ -271,7 +271,7 @@ def _import_main_func(name):
     from unittest.mock import MagicMock
     for mod in ("pystray", "PIL", "PIL.Image", "webview"):
         sys.modules.setdefault(mod, MagicMock())
-    from dashboard.wrapper import load_backups, save_backups
+    from dashboard.runner import load_backups, save_backups
     return load_backups if name == "load_backups" else save_backups
 
 
@@ -311,7 +311,7 @@ class TestLoadBackups:
 
 class TestSaveBackups:
     def test_save_backups(self, tmp_path, backup_instance):
-        from dashboard.wrapper import save_backups
+        from dashboard.runner import save_backups
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
         save_backups({"test": backup_instance}, configs_dir)
@@ -320,7 +320,7 @@ class TestSaveBackups:
         assert data["config_name"] == "test_backup"
 
     def test_save_backups_dir_not_exist(self, tmp_path, backup_instance):
-        from dashboard.wrapper import save_backups
+        from dashboard.runner import save_backups
         with pytest.raises(ValueError, match="No config files directory at"):
             save_backups({"test": backup_instance}, tmp_path / "nonexistent")
 

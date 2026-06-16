@@ -387,6 +387,7 @@ class Backup:
             try:
                 self.drive_handler = DriveHandler()
                 self.drive_handler._cancel_folder_upload_event = self._cancel_backup_event
+                self.drive_handler.authenticate()
                 self.drive_handler._folder_upload_progress_callback = lambda current, total: setattr(self, '_progress_percent', current / total)
                 self.drive_handler.start_folder_upload(backup_folder, self.drive_folder_id)
                 drive_backup_folder_id = self.drive_handler.wait_for_folder_upload()
