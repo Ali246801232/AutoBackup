@@ -35,6 +35,7 @@ def mock_google():
 def handler(mock_google):
     _, _, _, _, file_mock = mock_google
     h = DriveHandler()
+    h.authenticate()
     h.current_folder = file_mock
     return h
 
@@ -43,6 +44,7 @@ class TestInit:
     def test_authenticate_mocked(self, mock_google):
         MockGA, MockGD, _, _, _ = mock_google
         h = DriveHandler()
+        h.authenticate()
         assert MockGA.called
         assert MockGD.called
         assert h.current_folder is not None
@@ -50,7 +52,8 @@ class TestInit:
     def test_authenticate_failure(self):
         with patch("backup.drive.GoogleAuth", side_effect=Exception("auth fail")):
             with pytest.raises(RuntimeError, match="Failed to authenticate"):
-                DriveHandler()
+                h = DriveHandler()
+                h.authenticate()
 
 
 class TestFolderNavigation:

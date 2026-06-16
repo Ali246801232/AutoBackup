@@ -20,44 +20,48 @@ class DriveHandler:
         
     def authenticate(self):
         """Authenticate using saved credentials, otherwise with local web server."""
-        self.script_dir = Path(__file__).parent.resolve()
-        client_config_file = self.script_dir / "client_secrets.json"
-        credentials_file = self.script_dir / "credentials.json"
+        try:
+            self.script_dir = Path(__file__).parent.resolve()
+            client_config_file = self.script_dir / "client_secrets.json"
+            credentials_file = self.script_dir / "credentials.json"
 
-        self.gauth = GoogleAuth(settings={
-            "client_config_backup": "file",
-            "client_config_file": str(client_config_file),
-            "save_credentials": True,
-            "save_credentials_backend": "file",
-            "save_credentials_file": str(credentials_file),
-            "get_refresh_token": True,
-        })
+            self.gauth = GoogleAuth(settings={
+                "client_config_backup": "file",
+                "client_config_file": str(client_config_file),
+                "save_credentials": True,
+                "save_credentials_backend": "file",
+                "save_credentials_file": str(credentials_file),
+                "get_refresh_token": True,
+            })
 
-        if not client_config_file.exists():
-            raise RuntimeError("No client_secrets.json found in script directory")        
+            if not client_config_file.exists():
+                raise RuntimeError("No client_secrets.json found in script directory")        
 
-        if credentials_file.exists():
-            self.gauth.LoadCredentialsFile()
-        
-        # Attempt to authorize
-        if self.gauth.access_token_expired:
-            try:
-                self.gauth.Refresh()
-            except RefreshError:  # LocalWebserverAuth() calls Refresh() if save_credentials is True so I have to resort to this buffoonery
-                self.gauth.credentials = None
-                save_credentials = self.gauth.settings.get("save_credentials")
+            if credentials_file.exists():
+                self.gauth.LoadCredentialsFile()
+            
+            # Attempt to authorize
+            if self.gauth.access_token_expired:
                 try:
-                    self.gauth.settings["save_credentials"] = False
-                    self.gauth.LocalWebserverAuth()
-                finally:
-                    self.gauth.settings["save_credentials"] = save_credentials
-        else:
-            self.gauth.Authorize()
+                    self.gauth.Refresh()
+                except RefreshError:
+                    # LocalWebserverAuth() calls Refresh() if save_credentials is True so I have to resort to this buffoonery
+                    self.gauth.credentials = None
+                    save_credentials = self.gauth.settings.get("save_credentials")
+                    try:
+                        self.gauth.settings["save_credentials"] = False
+                        self.gauth.LocalWebserverAuth()
+                    finally:
+                        self.gauth.settings["save_credentials"] = save_credentials
+            else:
+                self.gauth.Authorize()
 
-        self.gauth.SaveCredentialsFile()
+            self.gauth.SaveCredentialsFile()
 
-        self.drive = GoogleDrive(self.gauth)
-        self.open_folder("root")
+            self.drive = GoogleDrive(self.gauth)
+            self.open_folder("root")
+        except Exception as e:
+            raise RuntimeError("Failed to authenticate: {e}") from e
 
 
     def open_folder(self, folder_id: str):
