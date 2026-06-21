@@ -402,7 +402,7 @@ class TestFolderUploadThread:
 
         drive_folder_mock = MagicMock()
         drive_folder_mock.__getitem__ = MagicMock(side_effect=lambda k: "fid" if k == "id" else "Upload")
-        drive_folder_mock.Upload = MagicMock()
+        drive_folder_mock.Upload = MagicMock(side_effect=lambda: handler._cancel_folder_upload_event.wait())
         gdrive.CreateFile.return_value = drive_folder_mock
 
         handler.start_folder_upload(folder, "pid")
@@ -417,12 +417,13 @@ class TestFolderUploadThread:
 
         drive_folder_mock = MagicMock()
         drive_folder_mock.__getitem__ = MagicMock(side_effect=lambda k: "fid" if k == "id" else "Upload")
-        drive_folder_mock.Upload = MagicMock()
+        drive_folder_mock.Upload = MagicMock(side_effect=lambda: handler._cancel_folder_upload_event.wait())
         gdrive.CreateFile.return_value = drive_folder_mock
 
-        with patch.object(handler, "delete_item"):
+        with patch.object(handler, "delete_item") as mock_delete:
             handler.start_folder_upload(folder, "pid")
             handler.cancel_folder_upload(undo=True)
+        mock_delete.assert_called_once_with("fid")
 
     def test_cancel_no_thread(self, handler):
         handler._folder_upload_thread = None

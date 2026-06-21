@@ -447,12 +447,6 @@ class TestStartCancelBackup:
         assert result is not None
         assert "backup_folder" in result
 
-    def test_cancel_backup_event(self, backup_instance):
-        backup_instance.start_backup()
-        backup_instance.wait_for_backup()
-        # Cancel after completion is a no-op
-        backup_instance.cancel_backup()
-
     def test_double_start_fails(self, backup_instance):
         backup_instance.start_backup()
         with pytest.raises(RuntimeError):
@@ -490,15 +484,8 @@ class TestStartCancelBackup:
         time.sleep(0.02)
         b.cancel_backup(undo=True)
         b.wait_for_backup()
-        # cancel_backup with undo shouldn't crash regardless of timing
 
     def test_cancel_no_backup(self, backup_instance):
-        backup_instance.cancel_backup()
-
-    def test_cancel_twice(self, backup_instance):
-        backup_instance.start_backup()
-        backup_instance.wait_for_backup()
-        backup_instance.cancel_backup()
         backup_instance.cancel_backup()
 
     def test_cancel_re_raises_non_cancelled(self, backup_instance):

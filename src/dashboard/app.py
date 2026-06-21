@@ -121,7 +121,7 @@ def api_edit_backup(config_name):
         new_name = new_config.get("config_name", old_name)
 
         if new_name != old_name and new_name in BACKUPS:
-            abort(409, f"A backup with the name '{new_name}' already exists")
+            abort(409, f"A backup with the name {new_name} already exists")
 
         BACKUPS[new_name] = BACKUPS.pop(old_name)
         backup.update_from_dict(new_config)
@@ -155,7 +155,7 @@ def api_new_backup():
         if not config_name:
             return jsonify({"error": "A config name is required"}), 400
         if config_name in BACKUPS:
-            return jsonify({"error": f"A backup config with the name '{config_name}' already exists"}), 409
+            return jsonify({"error": f"A backup config with the name {config_name} already exists"}), 409
         if not data.get("sources"):
             return jsonify({"error": "At least one source is required"}), 400
         if not data.get("destination"):

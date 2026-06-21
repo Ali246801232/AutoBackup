@@ -13,7 +13,7 @@ def tmp_source_dir(tmp_path):
     d = tmp_path / "source"
     d.mkdir()
     (d / "file1.txt").write_text("hello")
-    (d / "file2.py").write_text("print('hi')")
+    (d / "file2.py").write_text("print(\"hi\")")
     sub = d / "subdir"
     sub.mkdir()
     (sub / "nested.txt").write_text("nested")

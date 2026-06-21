@@ -208,14 +208,14 @@ class DriveHandler:
 
     def trash_item(self, item_id):
         try:
-            item = self.drive.CreateFile({'id': item_id})
+            item = self.drive.CreateFile({"id": item_id})
             item.Trash()
         except Exception as e:
             raise RuntimeError(f"Failed to trash item {item_id}: {e}") from e
 
     def delete_item(self, item_id):
         try:
-            item = self.drive.CreateFile({'id': item_id})
+            item = self.drive.CreateFile({"id": item_id})
             item.Delete()
         except Exception as e:
             raise RuntimeError(f"Failed to permanently delete item {item_id}: {e}") from e
