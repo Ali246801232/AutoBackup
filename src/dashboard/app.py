@@ -19,6 +19,11 @@ def set_backup_configs_dir(dir_path: str | Path) -> Path:
     BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
     return BACKUP_CONFIGS_DIR
 
+def set_backups(backups: dict) -> dict:
+    global BACKUPS
+    BACKUPS = backups
+    return BACKUPS
+
 
 app = Flask(__name__)
 

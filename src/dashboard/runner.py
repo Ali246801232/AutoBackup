@@ -3,7 +3,7 @@ from PIL import Image
 import webview
 from pathlib import Path
 
-from .app import BACKUP_CONFIGS_DIR, BACKUPS, set_backup_configs_dir, app
+from .app import BACKUP_CONFIGS_DIR, BACKUPS, set_backup_configs_dir, set_backups, app
 from .logger import logger
 from backup import Backup
 
@@ -48,8 +48,7 @@ def setup_backups():
     # Load backups
     logger.info("[DASHBOARD] Attempting to load backups")
     try:
-        BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
-        BACKUPS = load_backups(BACKUP_CONFIGS_DIR)
+        BACKUPS = set_backups(load_backups(BACKUP_CONFIGS_DIR))
         logger.info(f"[DASHBOARD] Loaded {len(BACKUPS)} backups from {BACKUP_CONFIGS_DIR}")
     except Exception as e:
         logger.error(f"[DASHBOARD] Error while loading backups: {e}")
@@ -87,7 +86,7 @@ def cleanup_backups():
         if BACKUP_CONFIGS_DIR is not None:
             try:
                 save_backups(BACKUPS, BACKUP_CONFIGS_DIR)
-                logger.info(f"[DASHBOARD] Saved backups to {BACKUP_CONFIGS_DIR}")
+                logger.info(f"[DASHBOARD] Saved {len(BACKUPS)} backups to {BACKUP_CONFIGS_DIR}")
             except Exception as e:
                 logger.error(f"[DASHBOARD] Error while saving backups during cleanup: {e}")
 
