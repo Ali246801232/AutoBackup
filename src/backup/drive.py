@@ -61,7 +61,7 @@ class DriveHandler:
             self.drive = GoogleDrive(self.gauth)
             self.open_folder("root")
         except Exception as e:
-            raise RuntimeError("Failed to authenticate: {e}") from e
+            raise RuntimeError(f"Failed to authenticate: {e}") from e
 
 
     def open_folder(self, folder_id: str):
