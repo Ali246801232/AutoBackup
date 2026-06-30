@@ -500,7 +500,7 @@ class Backup:
             try:
                 self.start_backup(scheduled=True)
                 backup_folder = self.wait_for_backup()
-                logger.info(f"Created scheduled backup: {backup_folder}")
+                logger.info(f"Created scheduled backup")
             except Exception as e:
                 logger.info(f"Scheduled backup errored: {e}")
 

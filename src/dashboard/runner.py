@@ -126,7 +126,7 @@ def setup_webview():
     global WINDOW, TRAY_ICON, app
 
     logger.info("Creating webview window")
-    WINDOW = webview.create_window("AutoBackup", app, width=1280, height=720, hidden=False)
+    WINDOW = webview.create_window("AutoBackup", app, width=1280, height=720, min_size=(640, 480), hidden=False)
     WINDOW.events.closing += on_window_closing
 
     logger.info("Creating tray icon")
