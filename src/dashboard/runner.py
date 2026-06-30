@@ -46,49 +46,45 @@ def setup_backups():
     global BACKUP_CONFIGS_DIR, BACKUPS
 
     # Load backups
-    logger.info("[DASHBOARD] Attempting to load backups")
+    logger.info("Attempting to load backups")
     try:
         BACKUPS = set_backups(load_backups(BACKUP_CONFIGS_DIR))
-        logger.info(f"[DASHBOARD] Loaded {len(BACKUPS)} backups from {BACKUP_CONFIGS_DIR}")
+        logger.info(f"Loaded {len(BACKUPS)} backups from {BACKUP_CONFIGS_DIR}")
     except Exception as e:
-        logger.error(f"[DASHBOARD] Error while loading backups: {e}")
+        logger.error(f"Error while loading backups: {e}")
         raise
 
     # Start schedulers
-    logger.info("[DASHBOARD] Attempting to start schedulers")
+    logger.info("Attempting to start schedulers")
     for config_name, backup in BACKUPS.items():
         try:
             backup.start_scheduler()
-            logger.info(f"[DASHBOARD] Started scheduler for backup {config_name}")
+            logger.info(f"Started scheduler for backup {config_name}")
         except Exception as e:
-            logger.error(
-                f"[DASHBOARD] Error while starting scheduler for backup {config_name}: {e}"
-            )
+            logger.error(f"Error while starting scheduler for backup {config_name}: {e}")
 
 def cleanup_backups():
     """Stop all schedulers, cancel all backups, and save all backup configs"""
     global BACKUP_CONFIGS_DIR, BACKUPS
 
-    logger.info("[DASHBOARD] Attempting to clean up backups")
+    logger.info("Attempting to clean up backups")
     if BACKUPS is not None:
         # Stop all schedulers and cancel all backups
         for config_name, backup in BACKUPS.items():
             try:
                 backup.stop_scheduler()
                 backup.cancel_backup()
-                logger.info(f"[DASHBOARD] Stopped backup {config_name}")
+                logger.info(f"Stopped backup {config_name}")
             except Exception as e:
-                logger.error(
-                    f"[DASHBOARD] Error while stopping backup {config_name} during cleanup: {e}"
-                )
+                logger.error(f"Error while stopping backup {config_name} during cleanup: {e}")
 
         # Save all backups
         if BACKUP_CONFIGS_DIR is not None:
             try:
                 save_backups(BACKUPS, BACKUP_CONFIGS_DIR)
-                logger.info(f"[DASHBOARD] Saved {len(BACKUPS)} backups to {BACKUP_CONFIGS_DIR}")
+                logger.info(f"Saved {len(BACKUPS)} backups to {BACKUP_CONFIGS_DIR}")
             except Exception as e:
-                logger.error(f"[DASHBOARD] Error while saving backups during cleanup: {e}")
+                logger.error(f"Error while saving backups during cleanup: {e}")
 
 
 def toggle_window(icon, item):
@@ -98,11 +94,11 @@ def toggle_window(icon, item):
         if WINDOW_VISIBLE:
             WINDOW.hide()
             WINDOW_VISIBLE = False
-            logger.info("[DASHBOARD] Webview window hidden")
+            logger.info("Webview window hidden")
         else:
             WINDOW.show()
             WINDOW_VISIBLE = True
-            logger.info("[DASHBOARD] Webview window shown")
+            logger.info("Webview window shown")
         icon.update_menu()
 
 def on_window_closing():
@@ -118,7 +114,7 @@ def on_window_closing():
         if FIRST_HIDE:
             TRAY_ICON.notify(message="Closing minizes to system tray.\nTo restore or quit, use the tray icon.\nQuitting cancels ongoing and scheduled backups.")
             FIRST_HIDE = False
-        logger.info("[DASHBOARD] Webview window hidden")
+        logger.info("Webview window hidden")
     return False
 
 def quit_application(icon, item):
@@ -129,11 +125,11 @@ def setup_webview():
     """Create the webview window and start the tray icon."""
     global WINDOW, TRAY_ICON, app
 
-    logger.info("[DASHBOARD] Creating webview window")
+    logger.info("Creating webview window")
     WINDOW = webview.create_window("AutoBackup", app, width=1280, height=720, hidden=False)
     WINDOW.events.closing += on_window_closing
 
-    logger.info("[DASHBOARD] Creating tray icon")
+    logger.info("Creating tray icon")
     menu = pystray.Menu(
         pystray.MenuItem(
             text=lambda item: "Hide Window" if WINDOW_VISIBLE else "Show Window",
@@ -176,7 +172,7 @@ def cleanup():
 def run_app(backup_configs_dir: str|Path = None):
     global BACKUP_CONFIGS_DIR, DEFAULT_CONFIGS_DIR
 
-    logger.info("[DASHBOARD] Running webapp")
+    logger.info("Running webapp")
 
     if backup_configs_dir is None:
         backup_configs_dir = DEFAULT_CONFIGS_DIR

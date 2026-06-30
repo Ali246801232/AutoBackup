@@ -56,12 +56,12 @@ def api_backups():
                 backups[config_name]["status"] = backup.status
         return jsonify(backups)
     except Exception as e:
-        logger.error(f"[FLASK APP] Failed to get backups: {e}")
+        logger.error(f"Failed to get backups: {e}")
         return jsonify({"error": f"Error while getting backups: {e}"}), 500
 
 @app.route("/api/backups/<config_name>/start_backup", methods=["POST"])
 def api_start_backup(config_name):
-    logger.info(f"[FLASK APP] Attempting to start backup (/api/backups/{config_name}/start_backup)")
+    logger.info(f"Attempting to start backup (/api/backups/{config_name}/start_backup)")
     backup = BACKUPS.get(config_name)
     if not backup:
         abort(404, f"No backup found for {config_name}")
@@ -69,12 +69,12 @@ def api_start_backup(config_name):
         backup.start_backup()
         return jsonify({"status": "backup started"}), 202
     except Exception as e:
-        logger.error(f"[FLASK APP] Failed to start backup for {config_name}: {e}")
+        logger.error(f"Failed to start backup for {config_name}: {e}")
         return jsonify({"error": f"Error while starting backup for {config_name}: {e}"}), 500
 
 @app.route("/api/backups/<config_name>/cancel_backup", methods=["POST"])
 def api_cancel_backup(config_name):
-    logger.info(f"[FLASK APP] Attempting to cancel backup (/api/backups/{config_name}/cancel_backup)")
+    logger.info(f"Attempting to cancel backup (/api/backups/{config_name}/cancel_backup)")
     backup = BACKUPS.get(config_name)
     if not backup:
         abort(404, f"No backup found for {config_name}")
@@ -82,12 +82,12 @@ def api_cancel_backup(config_name):
         backup.cancel_backup()
         return jsonify({"status": "backup cancelled"}), 200
     except Exception as e:
-        logger.error(f"[FLASK APP] Failed to cancel backup for {config_name}: {e}")
+        logger.error(f"Failed to cancel backup for {config_name}: {e}")
         return jsonify({"error": f"Error while cancelling backup for {config_name}: {e}"}), 500
 
 @app.route("/api/backups/<config_name>/start_scheduler", methods=["POST"])
 def api_start_scheduler(config_name):
-    logger.info(f"[FLASK APP] Attempting to start scheduler (/api/backups/{config_name}/start_scheduler)")
+    logger.info(f"Attempting to start scheduler (/api/backups/{config_name}/start_scheduler)")
     backup = BACKUPS.get(config_name)
     if not backup:
         abort(404, f"No backup found for {config_name}")
@@ -95,12 +95,12 @@ def api_start_scheduler(config_name):
         backup.start_scheduler()
         return jsonify({"status": "scheduler started"}), 202
     except Exception as e:
-        logger.error(f"[FLASK APP] Failed to start scheduler for {config_name}: {e}")
+        logger.error(f"Failed to start scheduler for {config_name}: {e}")
         return jsonify({"error": f"Error while starting scheduler for {config_name}: {e}"}), 500
 
 @app.route("/api/backups/<config_name>/stop_scheduler", methods=["POST"])
 def api_stop_scheduler(config_name):
-    logger.info(f"[FLASK APP] Attempting to stop scheduler (/api/backups/{config_name}/stop_scheduler)")
+    logger.info(f"Attempting to stop scheduler (/api/backups/{config_name}/stop_scheduler)")
     backup = BACKUPS.get(config_name)
     if not backup:
         abort(404, f"No backup found for {config_name}")
@@ -108,13 +108,13 @@ def api_stop_scheduler(config_name):
         backup.stop_scheduler()
         return jsonify({"status": "scheduler stopped"}), 200
     except Exception as e:
-        logger.error(f"[FLASK APP] Failed to stop scheduler for {config_name}: {e}")
+        logger.error(f"Failed to stop scheduler for {config_name}: {e}")
         return jsonify({"error": f"Error while stopping scheduler for {config_name}: {e}"}), 500
 
 
 @app.route("/api/backups/<config_name>/edit", methods=["POST"])
 def api_edit_backup(config_name):
-    logger.info(f"[FLASK APP] Attempting to edit backup (/api/backups/{config_name}/edit)")
+    logger.info(f"Attempting to edit backup (/api/backups/{config_name}/edit)")
     backup = BACKUPS.get(config_name)
     if not backup:
         abort(404, f"No backup found for {config_name}")
@@ -145,12 +145,12 @@ def api_edit_backup(config_name):
         if new_name != old_name:
             BACKUPS[old_name] = BACKUPS.pop(new_name)
         backup.update_from_dict(old_config)
-        logger.error(f"[FLASK APP] Failed to update backup for {config_name}: {e}")
+        logger.error(f"Failed to update backup for {config_name}: {e}")
         return jsonify({"error": f"Error while updating backup for {config_name}: {e}"}), 500
 
 @app.route("/api/backups/new", methods=["POST"])
 def api_new_backup():
-    logger.info("[FLASK APP] Attempting to create backup (/api/backups/new)")
+    logger.info("Attempting to create backup (/api/backups/new)")
 
     try:
         data = request.get_json() or {}
@@ -179,12 +179,12 @@ def api_new_backup():
         backup.to_json(config_file)
         return jsonify(backup.to_dict()), 201
     except Exception as e:
-        logger.error(f"[FLASK APP] Failed to create backup: {e}")
+        logger.error(f"Failed to create backup: {e}")
         return jsonify({"error": f"Error while creating backup: {e}"}), 500
 
 @app.route("/api/backups/<config_name>/delete", methods=["POST"])
 def api_delete_backup(config_name):
-    logger.info(f"[FLASK APP] Attempting to delete backup (/api/backups/{config_name}/delete)")
+    logger.info(f"Attempting to delete backup (/api/backups/{config_name}/delete)")
     backup = BACKUPS.get(config_name)
     if not backup:
         abort(404, f"No backup found for {config_name}")
@@ -201,13 +201,13 @@ def api_delete_backup(config_name):
         config_file.unlink(missing_ok=True)
         return jsonify({"status": "backup deleted"}), 200
     except Exception as e:
-        logger.error(f"[FLASK APP] Failed to delete backup for {config_name}: {e}")
+        logger.error(f"Failed to delete backup for {config_name}: {e}")
         return jsonify({"error": f"Error while deleting backup for {config_name}: {e}"}), 500
 
 
 @app.route("/api/file_dialog", methods=["POST"])
 def api_file_dialog():
-    logger.info("[FLASK APP] Attempting to open file dialog")
+    logger.info("Attempting to open file dialog")
 
     data = request.get_json() or {}
     dialog_type = data.get("type", "folder")
@@ -218,7 +218,7 @@ def api_file_dialog():
         else:
             result = webview.windows[0].create_file_dialog(webview.FileDialog.FOLDER)
     except Exception as e:
-        logger.error(f"[FLASK APP] Error while using file dialog: {e}")
+        logger.error(f"Error while using file dialog: {e}")
         return jsonify({"error": str(e)}), 500
 
     if result is None:
@@ -232,7 +232,7 @@ def api_file_dialog():
 def api_drive_auth():
     global DRIVE_BROWSER
 
-    logger.info("[FLASK APP] Attempting to authenticate for Drive browser")
+    logger.info("Attempting to authenticate for Drive browser")
 
     try:
         handler = DRIVE_BROWSER
@@ -243,7 +243,7 @@ def api_drive_auth():
             "folder_name": handler.current_folder["title"]
         })
     except Exception as e:
-        logger.error(f"[FLASK APP] Eror authenticating for Drive browser: {e}")
+        logger.error(f"Eror authenticating for Drive browser: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -251,7 +251,7 @@ def api_drive_auth():
 def api_drive_browse():
     global DRIVE_BROWSER
 
-    logger.info("[FLASK APP] Attempting to open folder in Drive browser")
+    logger.info("Attempting to open folder in Drive browser")
 
     data = request.get_json() or {}
     folder_id = data.get("folder_id")
@@ -270,7 +270,7 @@ def api_drive_browse():
             "children": [{"id": c["id"], "name": c["title"]} for c in children]
         })
     except Exception as e:
-        logger.error(f"[FLASK APP] Error opening folder in Drive browser: {e}")
+        logger.error(f"Error opening folder in Drive browser: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -278,7 +278,7 @@ def api_drive_browse():
 def api_drive_up():
     global DRIVE_BROWSER
 
-    logger.info("[FLASK APP] Attempting to open parent in Drive browser")
+    logger.info("Attempting to open parent in Drive browser")
 
     handler = DRIVE_BROWSER
     if not handler:
@@ -293,13 +293,13 @@ def api_drive_up():
             "children": [{"id": c["id"], "name": c["title"]} for c in children]
         })
     except Exception as e:
-        logger.error(f"[FLASK APP] Error navigating to parent in Drive browser: {e}")
+        logger.error(f"Error navigating to parent in Drive browser: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/drive/select", methods=["POST"])
 def api_drive_select():
-    logger.info("[FLASK APP] Attempting to select folder in Drive browser")
+    logger.info("Attempting to select folder in Drive browser")
 
     data = request.get_json() or {}
     folder_id = data.get("folder_id")
@@ -307,6 +307,6 @@ def api_drive_select():
 
     if not folder_id or not folder_name:
         return jsonify({"error": "folder_id and folder_name are required"}), 400
-    logger.info(f"[FLASK APP] Drive folder selected: {folder_name} ({folder_id})")
+    logger.info(f"Drive folder selected: {folder_name} ({folder_id})")
 
     return jsonify({"folder_id": folder_id, "folder_name": folder_name})

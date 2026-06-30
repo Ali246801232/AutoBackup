@@ -68,7 +68,7 @@ class DriveHandler:
         """Go to a Drive folder with a given ID, and return the folder"""
         self.current_folder = self.drive.CreateFile({"id": folder_id})
         self.current_folder.FetchMetadata()
-        logger.info(f"[DRIVE] Opened folder {folder_id}")
+        logger.info(f"Opened folder {folder_id}")
         return self.current_folder
 
     def go_up(self):
@@ -102,7 +102,7 @@ class DriveHandler:
 
         children.sort(key=lambda x: x.get("title", "").lower())
 
-        logger.info(f"[DRIVE] Fetched children for {folder_id}")
+        logger.info(f"Fetched children for {folder_id}")
         return children
 
     def get_child_folders(self, folder_id: str | None = None):
@@ -176,7 +176,7 @@ class DriveHandler:
             if is_root:
                 self._folder_upload_root_id = drive_folder["id"]
         except ApiRequestError as e:
-            logger.error(f"[DRIVE] Failed to upload item {folder_path.name}: {e}")
+            logger.error(f"Failed to upload item {folder_path.name}: {e}")
             if is_root:
                 raise RuntimeError(f"Failed to create folder ({folder_path}): {e}") from e
             return None
@@ -192,12 +192,12 @@ class DriveHandler:
                     self.upload_folder(item, drive_folder["id"], is_root=False)
                 elif item.is_file():
                     self.upload_file(item, drive_folder["id"])
-                logger.debug(f"[DRIVE] Uploaded item {item.absolute()}")
+                logger.debug(f"Uploaded item {item.absolute()}")
             except CancelledError as e:
-                logger.info(f"[DRIVE] {e}")
+                logger.info(f"{e}")
                 raise
             except Exception as e:
-                logger.error(f"[DRIVE] Failed to upload item {item.absolute()}: {e}")
+                logger.error(f"Failed to upload item {item.absolute()}: {e}")
 
             self._completed_folder_upload_items += 1
             if self._folder_upload_progress_callback and self._total_folder_upload_items > 0:

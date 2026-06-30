@@ -11,7 +11,7 @@ logger = logging.getLogger("AutoBackup.dashboard")
 logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter(
-    "%(asctime)s | %(levelname)7s | %(name)s | %(message)s"
+    "%(asctime)s | %(levelname)7s | %(name)20s | %(filename)10s | %(message)s"
 )
 
 file_handler = logging.FileHandler(log_file, encoding="utf-8")

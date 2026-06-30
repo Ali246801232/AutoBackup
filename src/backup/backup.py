@@ -104,19 +104,19 @@ class Backup:
 
     def to_json(self, file_path: str|Path):
         """Save the backup configuration of this instance to a JSON file."""
-        logger.info(f"[BACKUP] Attempting to save backup details to {file_path}")
+        logger.info(f"Attempting to save backup details to {file_path}")
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=4)
-        logger.info(f"[BACKUP] Saved backup details to {file_path}")
+        logger.info(f"Saved backup details to {file_path}")
 
     @classmethod
     def from_json(cls, file_path: str|Path) -> Backup:
         """Return a Backup instance loaded from a backup configuration from a JSON file."""
-        logger.info(f"[BACKUP] Attempting to load backup details from {file_path}")
+        logger.info(f"Attempting to load backup details from {file_path}")
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         instance = cls.from_dict(data)
-        logger.info(f"[BACKUP] Loaded backup details from {file_path}")
+        logger.info(f"Loaded backup details from {file_path}")
         return instance
 
     def update_from_dict(self, data: dict):
@@ -165,19 +165,19 @@ class Backup:
     @property
     def effective_sources(self) -> List[Path]:
         """Return the list of sources flattened and with exclusions removed."""
-        logger.debug("[BACKUP] Attempting to fetch effective sources")
+        logger.debug("Attempting to fetch effective sources")
         sources = self._flatten_paths(self.sources)
         exclusions = self._flatten_paths(self.exclusions)
         effective_sources = [source for source in sources if source not in exclusions]
-        logger.debug(f"[BACKUP] Fetched effective sources: {[str(source.absolute()) for source in effective_sources]}")
+        logger.debug(f"Fetched effective sources: {[str(source.absolute()) for source in effective_sources]}")
         return effective_sources
 
     @property
     def size_bytes(self) -> int:
         """Calculate and return the size of the backup by summing the sizes of all effective sources."""
-        logger.debug("[BACKUP] Attempting to calculate backup size")
+        logger.debug("Attempting to calculate backup size")
         size_bytes = sum(path.stat().st_size for path in self.effective_sources)
-        logger.debug(f"[BACKUP] Calculated backup file size: {size_bytes} B")
+        logger.debug(f"Calculated backup file size: {size_bytes} B")
         return size_bytes
 
     @property
@@ -266,7 +266,7 @@ class Backup:
             if self._cancel_backup_event.is_set():
                 raise CancelledError("Backup was cancelled")
             
-            logger.debug(f"[BACKUP] Attempting to copy source {source}")
+            logger.debug(f"Attempting to copy source {source}")
             try:
                 source = source.resolve()
 
@@ -285,12 +285,12 @@ class Backup:
                     shutil.copy2(source, destination_path)
                 elif source.is_dir():
                     shutil.copytree(source, destination_path)
-                logger.debug(f"[BACKUP] Copied source {source} to {destination_path}")
+                logger.debug(f"Copied source {source} to {destination_path}")
             except CancelledError as e:
-                logger.info(f"[BACKUP] {e}")
+                logger.info(f"{e}")
                 raise
             except Exception as e:
-                logger.error(f"[BACKUP] Failed to copy source {source}: {e}")
+                logger.error(f"Failed to copy source {source}: {e}")
             
             self._progress_percent = (count+1) / total
 
@@ -355,10 +355,10 @@ class Backup:
         # Verify backup details
         self._progress_message = "Verifying backup details"
         self._progress_percent = None
-        logger.info("[BACKUP] Verifying backup details")
+        logger.info("Verifying backup details")
         try:
             self.verify_details()
-            logger.info("[BACKUP] Verified backup details")
+            logger.info("Verified backup details")
         except Exception as e:
             raise RuntimeError(f"Failed to verify backup details: {e}") from e
 
@@ -368,11 +368,11 @@ class Backup:
         # Create local backup
         self._progress_message = "Creating local backup (0%)"
         self._progress_percent = 0.0
-        logger.info("[BACKUP] Attempting to create local backup")
+        logger.info("Attempting to create local backup")
         try:
             backup_folder = self.destination / f"{self.config_name}_{datetime.now():%Y-%m-%d_%H-%M-%S}"
             self.copy_items(self.effective_sources, backup_folder)
-            logger.info(f"[BACKUP] Created local backup: {backup_folder}")
+            logger.info(f"Created local backup: {backup_folder}")
         except Exception as e:
             raise RuntimeError(f"Failed to create local backup: {e}") from e
 
@@ -383,7 +383,7 @@ class Backup:
         if self.drive_upload:
             self._progress_message = "Uploading backup to Google Drive"
             self._progress_percent = 0.0
-            logger.info("[BACKUP] Attempting to upload backup to Google Drive")
+            logger.info("Attempting to upload backup to Google Drive")
             try:
                 self.drive_handler = DriveHandler()
                 self.drive_handler._cancel_folder_upload_event = self._cancel_backup_event
@@ -391,7 +391,7 @@ class Backup:
                 self.drive_handler._folder_upload_progress_callback = lambda current, total: setattr(self, "_progress_percent", current / total)
                 self.drive_handler.start_folder_upload(backup_folder, self.drive_folder_id)
                 drive_backup_folder_id = self.drive_handler.wait_for_folder_upload()
-                logger.info(f"[BACKUP] Uploaded backup to Google Drive: https://drive.google.com/drive/folders/{drive_backup_folder_id}")
+                logger.info(f"Uploaded backup to Google Drive: https://drive.google.com/drive/folders/{drive_backup_folder_id}")
             except Exception as e:
                 raise RuntimeError(f"Failed to upload backup to Google Drive: {e}") from e
         else:
@@ -475,7 +475,7 @@ class Backup:
 
     def run_scheduler(self):
         """Indefinitely wait for and create scheduled backups."""
-        logger.info(f"[BACKUP] Started scheduler")
+        logger.info(f"Started scheduler")
 
         while not self._stop_scheduler_event.is_set():
             # No schedule configured
@@ -483,7 +483,7 @@ class Backup:
                 break
                 
             # Wait until the next scheduled backup
-            logger.info(f"[BACKUP] Waiting until the next backup: {self.next_backup}")
+            logger.info(f"Waiting until the next backup: {self.next_backup}")
             timeout = max(0.0, (self.next_backup - datetime.now()).total_seconds())
             if self._stop_scheduler_event.wait(timeout):
                 break
@@ -496,15 +496,15 @@ class Backup:
                     pass
 
             # Start the scheduled backup on a thread
-            logger.info(f"[BACKUP] Starting scheduled backup")
+            logger.info(f"Starting scheduled backup")
             try:
                 self.start_backup(scheduled=True)
                 backup_folder = self.wait_for_backup()
-                logger.info(f"[BACKUP] Created scheduled backup: {backup_folder}")
+                logger.info(f"Created scheduled backup: {backup_folder}")
             except Exception as e:
-                logger.info(f"[BACKUP] Scheduled backup errored: {e}")
+                logger.info(f"Scheduled backup errored: {e}")
 
-        logger.info(f"[BACKUP] Stopped scheduler")
+        logger.info(f"Stopped scheduler")
 
 
     def start_scheduler(self):
