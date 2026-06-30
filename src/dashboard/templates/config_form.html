@@ -1,1 +1,2 @@
 {% extends "base.html" %}
+{% block title %}{% if config_data %}Edit {{ config_data.config_name }}{% else %}New Backup{% endif %} - AutoBackup{% endblock %}

@@ -117,7 +117,7 @@ def on_window_closing():
         if TRAY_ICON:
             TRAY_ICON.update_menu()
         if FIRST_HIDE:
-            TRAY_ICON.notify(message="Closing minizes to system tray.\nTo restore or quit, use the tray icon.")
+            TRAY_ICON.notify(message="Closing minizes to system tray.\nTo restore or quit, use the tray icon.\nQuitting cancels ongoing and scheduled backups.")
             FIRST_HIDE = False
         logger.info("[DASHBOARD] Webview window hidden")
     return False
