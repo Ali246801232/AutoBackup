@@ -1,7 +1,7 @@
 """AutoBackup/__main__.py"""
 import argparse
 
-import dashboard
+from dashboard import run_app
 
 
 def main():
@@ -9,8 +9,7 @@ def main():
     parser.add_argument("--configs-dir", type=str, help="Directory containing backup config files", default=None)
     args = parser.parse_args()
 
-    dashboard.set_backup_configs_dir(args.configs_dir)
-    dashboard.run_app()
+    run_app(args.configs_dir)
 
 
 if __name__ == "__main__":

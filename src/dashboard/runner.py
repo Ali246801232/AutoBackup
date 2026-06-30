@@ -3,7 +3,7 @@ from PIL import Image
 import webview
 from pathlib import Path
 
-from .app import BACKUP_CONFIGS_DIR, BACKUPS, app
+from .app import BACKUP_CONFIGS_DIR, BACKUPS, set_backup_configs_dir, app
 from .logger import logger
 from backup import Backup
 
@@ -50,7 +50,7 @@ def setup_backups():
     try:
         BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
         BACKUPS = load_backups(BACKUP_CONFIGS_DIR)
-        logger.info(f"[DASHBOARD] Loaded {len(BACKUPS)} backups")
+        logger.info(f"[DASHBOARD] Loaded {len(BACKUPS)} backups from {BACKUP_CONFIGS_DIR}")
     except Exception as e:
         logger.error(f"[DASHBOARD] Error while loading backups: {e}")
         raise
@@ -174,16 +174,15 @@ def cleanup():
     cleanup_backups()
 
 
-def set_backup_configs_dir(dir_path: str|Path = None):
+def run_app(backup_configs_dir: str|Path = None):
     global BACKUP_CONFIGS_DIR, DEFAULT_CONFIGS_DIR
-    if dir_path is None:
-        dir_path = DEFAULT_CONFIGS_DIR
-    dir_path = Path(dir_path).resolve()
-    dir_path.mkdir(parents=True, exist_ok=True)
-    BACKUP_CONFIGS_DIR = dir_path
 
-def run_app():
     logger.info("[DASHBOARD] Running webapp")
+
+    if backup_configs_dir is None:
+        backup_configs_dir = DEFAULT_CONFIGS_DIR
+    BACKUP_CONFIGS_DIR = set_backup_configs_dir(backup_configs_dir)
+
     try:
         setup()
         TRAY_ICON.run_detached()

@@ -11,7 +11,13 @@ from .logger import logger
 
 BACKUP_CONFIGS_DIR: Path = None
 BACKUPS: dict[str, Backup]  = {}
-DRIVE_BROWSER: DriveHandler = None
+DRIVE_BROWSER: DriveHandler = DriveHandler()
+
+def set_backup_configs_dir(dir_path: str | Path) -> Path:
+    global BACKUP_CONFIGS_DIR
+    BACKUP_CONFIGS_DIR = Path(dir_path).resolve()
+    BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
+    return BACKUP_CONFIGS_DIR
 
 
 app = Flask(__name__)
@@ -203,9 +209,9 @@ def api_file_dialog():
 
     try:
         if dialog_type == "file":
-            result = webview.windows[0].create_file_dialog(webview.OPEN_DIALOG)
+            result = webview.windows[0].create_file_dialog(webview.FileDialog.OPEN)
         else:
-            result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+            result = webview.windows[0].create_file_dialog(webview.FileDialog.FOLDER)
     except Exception as e:
         logger.error(f"[FLASK APP] Error while using file dialog: {e}")
         return jsonify({"error": str(e)}), 500
@@ -224,10 +230,9 @@ def api_drive_auth():
     logger.info("[FLASK APP] Attempting to authenticate for Drive browser")
 
     try:
-        handler = DriveHandler()
+        handler = DRIVE_BROWSER
         handler.authenticate()
         handler.go_to_root()
-        DRIVE_BROWSER = handler
         return jsonify({
             "folder_id": handler.current_folder["id"],
             "folder_name": handler.current_folder["title"]
