@@ -198,14 +198,22 @@ def api_delete_backup(config_name):
 def api_file_dialog():
     logger.info("[FLASK APP] Attempting to open file dialog")
 
+    data = request.get_json() or {}
+    dialog_type = data.get("type", "folder")
+
     try:
-        result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+        if dialog_type == "file":
+            result = webview.windows[0].create_file_dialog(webview.OPEN_DIALOG)
+        else:
+            result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
     except Exception as e:
         logger.error(f"[FLASK APP] Error while using file dialog: {e}")
         return jsonify({"error": str(e)}), 500
 
     if result is None:
         return jsonify({"path": None})
+    if isinstance(result, (tuple, list)):
+        result = result[0]
     return jsonify({"path": str(result)})
 
 

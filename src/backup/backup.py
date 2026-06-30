@@ -64,7 +64,7 @@ class Backup:
         self._stop_scheduler_event: threading.Event = threading.Event()
         self.last_scheduled_attempt: datetime|None = last_scheduled_attempt
 
-        # Externally exposed state
+        # Externally exposed state events
         self.backup_started_event = threading.Event()
         self.backup_error_event = threading.Event()
         self.scheduler_started_event = threading.Event()

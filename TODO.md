@@ -1,5 +1,5 @@
 - Implement `dashboard/`:
-    - `static/style.css`: i havent decided what i want it to look like yet
+    - `static/style.css`: both light and dark themes probably, but i havent decided what exactly i want it to look like yet
     - `templates/index.html`: Home page and a dashboard for all loaded backups
         - Bigass logo and title at the top
         - List of cards with one row per backup:

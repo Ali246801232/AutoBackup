@@ -112,19 +112,12 @@ class TestListBackups:
         data = resp.get_json()
         assert "test_config" in data
         assert data["test_config"]["config_name"] == "test_config"
-
-
-class TestGetStatus:
-    def test_exists(self, client, setup_backups, created_backup):
-        resp = client.get("/api/backups/test_config/status")
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert "backup_running" in data
-        assert data["backup_running"] is False
-
-    def test_not_found(self, client, setup_backups):
-        resp = client.get("/api/backups/nonexistent/status")
-        assert resp.status_code == 404
+        assert "status" in data["test_config"]
+        assert data["test_config"]["status"]["backup_running"] is False
+        assert data["test_config"]["status"]["backup_error"] is False
+        assert data["test_config"]["status"]["scheduler_running"] is False
+        assert data["test_config"]["status"]["scheduler_error"] is False
+        assert data["test_config"]["status"]["backup_progress"] is None
 
 
 class TestUpdateBackup:
@@ -252,7 +245,7 @@ class TestPages:
             resp = client.get("/")
             assert resp.status_code == 200
 
-    def test_edit_backup_page(self, client):
+    def test_edit_backup_page(self, client, setup_backups, created_backup):
         import dashboard.app
         with patch.object(dashboard.app, "render_template", return_value="<html>editor</html>"):
             resp = client.get("/edit_backup/test_config")
