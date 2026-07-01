@@ -1,2 +1,112 @@
 {% extends "base.html" %}
+
 {% block title %}{% if config_data %}Edit {{ config_data.config_name }}{% else %}New Backup{% endif %} - AutoBackup{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="form-page-header">
+        <h1>{% if config_data %}Edit Backup{% else %}New Backup{% endif %}</h1>
+    </div>
+
+    <form id="config-form" novalidate>
+        <input type="hidden" id="original-name" value="{{ config_data.config_name if config_data else '' }}">
+
+        <div class="form-section">
+            <div class="form-group">
+                <label class="form-label" for="config-name">Configuration Name <span class="required">*</span></label>
+                <input type="text" id="config-name" class="form-input" placeholder="e.g. Work Documents" value="{{ config_data.config_name if config_data else '' }}" required>
+                <div class="form-error" id="error-config-name">Configuration name is required</div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">Sources <span class="required">*</span></div>
+            <div class="path-list" id="sources-list"></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+                <button type="button" class="add-path-btn" id="add-source-file-btn" style="width:auto;flex:1"><i data-lucide="file" style="width:16px;height:16px"></i> Add File</button>
+                <button type="button" class="add-path-btn" id="add-source-folder-btn" style="width:auto;flex:1"><i data-lucide="folder-open" style="width:16px;height:16px"></i> Add Folder</button>
+            </div>
+            <div class="form-error" id="error-sources">At least one source is required</div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">Exclusions</div>
+            <div class="path-list" id="exclusions-list"></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+                <button type="button" class="add-path-btn" id="add-exclusion-file-btn" style="width:auto;flex:1"><i data-lucide="file" style="width:16px;height:16px"></i> Add File</button>
+                <button type="button" class="add-path-btn" id="add-exclusion-folder-btn" style="width:auto;flex:1"><i data-lucide="folder-open" style="width:16px;height:16px"></i> Add Folder</button>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">Destination</div>
+            <div class="form-group">
+                <label class="form-label" for="destination">Destination Folder <span class="required">*</span></label>
+                <div class="path-row">
+                    <input type="text" id="destination" class="form-input" placeholder="Select a destination folder..." value="{{ config_data.destination if config_data else '' }}" required>
+                    <button type="button" class="btn btn-secondary" id="browse-destination-btn"><i data-lucide="folder-open" style="width:16px;height:16px"></i> Browse</button>
+                </div>
+                <div class="form-error" id="error-destination">Destination folder is required</div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">Schedule</div>
+            <div class="form-group">
+                <label class="form-checkbox">
+                    <input type="checkbox" id="schedule-enabled" {% if config_data and config_data.schedule %}checked{% endif %}>
+                    Enable scheduled backups
+                </label>
+            </div>
+            <div class="schedule-row form-row" id="schedule-row">
+                <label class="form-label" for="schedule-count">Every</label>
+                <input type="number" id="schedule-count" class="form-input" min="1" placeholder="e.g. 2" value="{% if config_data and config_data.schedule %}{{ config_data.schedule.count }}{% else %}1{% endif %}">
+                <select id="schedule-unit" class="form-select">
+                    <option value="seconds" {% if config_data and config_data.schedule and config_data.schedule.unit == 'seconds' %}selected{% endif %}>Seconds</option>
+                    <option value="minutes" {% if config_data and config_data.schedule and config_data.schedule.unit == 'minutes' %}selected{% endif %}>Minutes</option>
+                    <option value="hours" {% if config_data and config_data.schedule and config_data.schedule.unit == 'hours' %}selected{% endif %}>Hours</option>
+                    <option value="days" {% if not config_data or config_data.schedule and config_data.schedule.unit == 'days' %}selected{% endif %}>Days</option>
+                    <option value="weeks" {% if config_data and config_data.schedule and config_data.schedule.unit == 'weeks' %}selected{% endif %}>Weeks</option>
+                    <option value="months" {% if config_data and config_data.schedule and config_data.schedule.unit == 'months' %}selected{% endif %}>Months</option>
+                    <option value="years" {% if config_data and config_data.schedule and config_data.schedule.unit == 'years' %}selected{% endif %}>Years</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">Google Drive</div>
+            <div class="form-group">
+                <label class="form-checkbox">
+                    <input type="checkbox" id="drive-upload" {% if config_data and config_data.drive_upload %}checked{% endif %}>
+                    Upload backup to Google Drive
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Drive Folder</label>
+                <div class="drive-folder-row" id="drive-folder-row">
+                    <span class="drive-folder-placeholder" id="drive-folder-label">No folder selected</span>
+                    <button type="button" class="btn btn-secondary" id="browse-drive-btn"><i data-lucide="folder" style="width:16px;height:16px"></i> Browse Drive</button>
+                </div>
+                <input type="hidden" id="drive-folder-id" value="{{ config_data.drive_folder_id if config_data and config_data.drive_folder_id else '' }}">
+                <input type="hidden" id="drive-folder-name" value="">
+                <div class="form-error" id="error-drive-folder">Please select a Drive folder</div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div style="display:flex;gap:8px">
+                <button type="submit" class="btn btn-primary" id="submit-btn"><i data-lucide="save" style="width:16px;height:16px"></i> {% if config_data %}Save Changes{% else %}Create Backup{% endif %}</button>
+                <a href="/" class="btn btn-secondary">Cancel</a>
+            </div>
+            <div class="form-error" id="error-submit" style="margin-top:12px"></div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if config_data %}
+<script id="config-data" type="application/json">{{ config_data|tojson|safe }}</script>
+{% endif %}
+<script src="{{ url_for('static', filename='js/config-form.js') }}"></script>
+{% endblock %}

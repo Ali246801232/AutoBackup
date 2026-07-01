@@ -1,4 +1,5 @@
 import webview
+from plyer import notification
 from pathlib import Path
 from urllib.parse import quote
 from flask import Flask, render_template, abort, jsonify, request
@@ -8,6 +9,8 @@ from backup import Backup
 from backup.drive import DriveHandler
 from .logger import logger
 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+ICON_PATH = str(STATIC_DIR / "img" / "logo.png")
 
 BACKUP_CONFIGS_DIR: Path = None
 BACKUPS: dict[str, Backup]  = {}
@@ -310,3 +313,17 @@ def api_drive_select():
     logger.info(f"Drive folder selected: {folder_name} ({folder_id})")
 
     return jsonify({"folder_id": folder_id, "folder_name": folder_name})
+
+
+@app.route("/api/notify", methods=["POST"])
+def api_notify():
+    data = request.get_json() or {}
+    title = data.get("title", "AutoBackup")
+    message = data.get("message", "")
+    logger.info(f"Sending notification: {title} — {message}")
+    try:
+        notification.notify(title=title, message=message, app_name="AutoBackup", app_icon=LOGO_PATH, timeout=5)
+        return jsonify({"status": "notification sent"})
+    except Exception as e:
+        logger.error(f"Failed to send notification: {e}")
+        return jsonify({"error": str(e)}), 500

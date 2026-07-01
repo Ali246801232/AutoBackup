@@ -1,2 +1,20 @@
 {% extends "base.html" %}
+
 {% block title %}Dashboard - AutoBackup{% endblock %}
+
+{% block content %}
+<div class="search-bar">
+    <i data-lucide="search"></i>
+    <input type="text" id="search-input" placeholder="Search backups...">
+</div>
+
+<div id="backups-grid" class="backups-grid"></div>
+
+<a href="/new_backup" class="btn-fab" title="New backup">
+    <i data-lucide="plus"></i>
+</a>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

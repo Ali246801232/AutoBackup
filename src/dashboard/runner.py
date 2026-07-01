@@ -3,7 +3,7 @@ from PIL import Image
 import webview
 from pathlib import Path
 
-from .app import BACKUP_CONFIGS_DIR, BACKUPS, set_backup_configs_dir, set_backups, app
+from .app import BACKUP_CONFIGS_DIR, BACKUPS, set_backup_configs_dir, set_backups, ICON_PATH, app
 from .logger import logger
 from backup import Backup
 
@@ -14,9 +14,6 @@ TRAY_ICON = None
 WINDOW_VISIBLE = True
 QUITTING = False
 FIRST_HIDE = True
-
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-ICON_PATH = str(STATIC_DIR / "img" / "logo.png")
 
 
 def load_backups(configs_dir: str | Path) -> dict[str, Backup]:
