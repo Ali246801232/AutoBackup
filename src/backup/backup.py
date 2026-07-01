@@ -337,8 +337,8 @@ class Backup:
                 free_space = shutil.disk_usage(self.destination).free
                 if self.size_bytes > free_space:
                     errors.append(f"Backup destination at {self.destination} does not have enough space to store backup.")
-            except OSError:
-                errors.append(f"Cannot determine disk usage for destination {self.destination}.")
+            except Exception as e:
+                errors.append(f"Cannot determine disk usage for destination {self.destination}: {e}")
 
         if self.drive_upload and not (self.drive_folder_id and isinstance(self.drive_folder_id, str)):
             errors.append("Backup does not have a Drive folder to upload to.")

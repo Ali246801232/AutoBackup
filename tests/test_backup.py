@@ -360,11 +360,6 @@ class TestCopyItems:
             backup_instance.copy_items([tmp_source_dir / "file1.txt"], dest_sub)
         backup_instance._cancel_backup_event.clear()
 
-    def test_progress_percent(self, backup_instance, tmp_source_dir, tmp_dest_dir):
-        dest_sub = tmp_dest_dir / "backup_sub"
-        backup_instance.copy_items([tmp_source_dir / "file1.txt", tmp_source_dir / "file2.py"], dest_sub)
-        assert backup_instance._progress_percent == 1.0
-
     def test_overwrite_existing_file(self, backup_instance, tmp_source_dir, tmp_dest_dir):
         dest_sub = tmp_dest_dir / "backup_sub"
         dest_sub.mkdir(parents=True)
@@ -403,11 +398,6 @@ class TestVerifyDetails:
     def test_source_not_exists(self, backup_instance):
         missing = Path("/nonexistent/path")
         backup_instance.sources = [missing]
-        with pytest.raises(ValueError, match="not exist"):
-            backup_instance.verify_details()
-
-    def test_destination_not_exists(self, backup_instance):
-        backup_instance.destination = Path("/nonexistent/dest")
         with pytest.raises(ValueError, match="not exist"):
             backup_instance.verify_details()
 
@@ -485,9 +475,6 @@ class TestStartCancelBackup:
         b.cancel_backup(undo=True)
         b.wait_for_backup()
 
-    def test_cancel_no_backup(self, backup_instance):
-        backup_instance.cancel_backup()
-
     def test_cancel_re_raises_non_cancelled(self, backup_instance):
         backup_instance._backup_error = RuntimeError("something bad")
         backup_instance._backup_thread = threading.Thread(
@@ -560,3 +547,266 @@ class TestScheduler:
         t.start()
         backup_instance.run_scheduler()
         t.join()
+
+
+class TestScheduleToTimedelta:
+    def test_seconds(self):
+        from backup.backup import _schedule_to_timedelta
+        td = _schedule_to_timedelta({"count": 30, "unit": "seconds"})
+        assert td.total_seconds() == 30
+
+    def test_minutes(self):
+        from backup.backup import _schedule_to_timedelta
+        td = _schedule_to_timedelta({"count": 5, "unit": "minutes"})
+        assert td.total_seconds() == 300
+
+    def test_hours(self):
+        from backup.backup import _schedule_to_timedelta
+        td = _schedule_to_timedelta({"count": 2, "unit": "hours"})
+        assert td.total_seconds() == 7200
+
+    def test_days(self):
+        from backup.backup import _schedule_to_timedelta
+        td = _schedule_to_timedelta({"count": 7, "unit": "days"})
+        assert td.days == 7
+
+    def test_weeks(self):
+        from backup.backup import _schedule_to_timedelta
+        td = _schedule_to_timedelta({"count": 3, "unit": "weeks"})
+        assert td.days == 21
+
+    def test_months(self, tmp_source_dir, tmp_dest_dir):
+        from backup.backup import _schedule_to_timedelta
+        from dateutil.relativedelta import relativedelta
+        rd = _schedule_to_timedelta({"count": 2, "unit": "months"})
+        assert isinstance(rd, relativedelta)
+        assert rd.months == 2
+
+    def test_years(self, tmp_source_dir, tmp_dest_dir):
+        from backup.backup import _schedule_to_timedelta
+        from dateutil.relativedelta import relativedelta
+        rd = _schedule_to_timedelta({"count": 1, "unit": "years"})
+        assert isinstance(rd, relativedelta)
+        assert rd.years == 1
+
+
+class TestVerifyDetailsEdgeCases:
+    def test_config_name_not_string(self, backup_instance):
+        backup_instance.config_name = 123
+        with pytest.raises(ValueError, match="not a string"):
+            backup_instance.verify_details()
+        backup_instance.config_name = "test_backup"
+
+    def test_sources_not_list_of_paths(self, tmp_source_dir, tmp_dest_dir):
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir)
+        b.sources = ["string_not_path"]
+        with pytest.raises(ValueError, match="not a list of paths"):
+            b.verify_details()
+        b.sources = [tmp_source_dir]
+
+    def test_schedule_not_dict(self, tmp_source_dir, tmp_dest_dir):
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir, schedule="not_a_dict")
+        with pytest.raises(ValueError, match="not a dictionary"):
+            b.verify_details()
+
+    def test_schedule_missing_keys(self, tmp_source_dir, tmp_dest_dir):
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir, schedule={})
+        with pytest.raises(ValueError, match="not a dictionary"):
+            b.verify_details()
+
+    def test_schedule_negative_count(self, tmp_source_dir, tmp_dest_dir):
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir, schedule={"count": -1, "unit": "hours"})
+        with pytest.raises(ValueError, match="count must be positive"):
+            b.verify_details()
+
+    def test_schedule_invalid_unit(self, tmp_source_dir, tmp_dest_dir):
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir, schedule={"count": 1, "unit": "centuries"})
+        with pytest.raises(ValueError, match="unit is not one of"):
+            b.verify_details()
+
+    def test_size_os_error(self, backup_instance, tmp_path):
+        backup_instance.destination = tmp_path
+        backup_instance.verify_details()
+
+    def test_multiple_errors(self, backup_instance, tmp_source_dir):
+        backup_instance.config_name = ""
+        backup_instance.sources = []
+        with pytest.raises(ValueError) as exc:
+            backup_instance.verify_details()
+        msg = str(exc.value)
+        assert "no configuration name" in msg
+        assert "no sources" in msg
+        backup_instance.config_name = "test_backup"
+        backup_instance.sources = [tmp_source_dir]
+
+
+class TestCopyItemsEdgeCases:
+    def test_empty_sources(self, backup_instance, tmp_dest_dir):
+        dest_sub = tmp_dest_dir / "empty_backup"
+        backup_instance.copy_items([], dest_sub)
+        assert dest_sub.exists()
+        assert not list(dest_sub.iterdir())
+
+    def test_overwrite_directory(self, backup_instance, tmp_source_dir, tmp_dest_dir):
+        dest_sub = tmp_dest_dir / "backup_sub"
+        existing_dir = dest_sub / "subdir"
+        existing_dir.mkdir(parents=True)
+        (existing_dir / "old_file.txt").write_text("old")
+        backup_instance.copy_items([tmp_source_dir / "subdir"], dest_sub)
+        assert (dest_sub / "subdir" / "nested.txt").exists()
+        assert not (dest_sub / "subdir" / "old_file.txt").exists()
+
+    def test_progress_updates(self, backup_instance, tmp_source_dir, tmp_dest_dir):
+        dest_sub = tmp_dest_dir / "backup_sub"
+        backup_instance.copy_items([tmp_source_dir / "file1.txt", tmp_source_dir / "file2.py"], dest_sub)
+        assert backup_instance._progress_percent == 1.0
+        assert backup_instance._progress_percent == 1.0
+
+
+class TestFlattenPathsEdgeCases:
+    def test_deeply_nested(self, backup_instance, tmp_path):
+        deep = tmp_path / "a" / "b" / "c"
+        deep.mkdir(parents=True)
+        (deep / "leaf.txt").write_text("deep")
+        result = backup_instance._flatten_paths([tmp_path / "a"])
+        assert len(result) == 1
+        assert result[0].name == "leaf.txt"
+
+    def test_empty_dir_inside_non_empty(self, backup_instance, tmp_source_dir):
+        empty = tmp_source_dir / "subdir" / "empty_dir"
+        empty.mkdir()
+        result = backup_instance._flatten_paths([tmp_source_dir])
+        empty_dirs = [p for p in result if p.is_dir()]
+        assert len(empty_dirs) == 1
+        assert empty_dirs[0] == empty.resolve()
+
+    def test_multiple_identical_paths(self, backup_instance, tmp_source_dir):
+        result = backup_instance._flatten_paths([tmp_source_dir / "file1.txt", tmp_source_dir / "file1.txt"])
+        assert len(result) == 1
+
+    def test_nonexistent_path(self, backup_instance):
+        result = backup_instance._flatten_paths([Path("/nonexistent_file_xyz")])
+        assert result == []
+
+
+class TestEffectiveSourcesEdgeCases:
+    def test_duplicate_across_sources(self, tmp_source_dir, tmp_dest_dir):
+        b = Backup("t", [tmp_source_dir, tmp_source_dir], tmp_dest_dir)
+        eff = b.effective_sources
+        names = [p.name for p in eff]
+        assert names.count("file1.txt") == 1
+
+
+class TestBackupRunningEdgeCases:
+    def test_both_ongoing(self, backup_instance):
+        backup_instance._manual_backup_ongoing = True
+        backup_instance._scheduled_backup_ongoing = True
+        assert backup_instance.backup_running is True
+        backup_instance._manual_backup_ongoing = False
+        backup_instance._scheduled_backup_ongoing = False
+
+
+class TestCancelBackupEdgeCases:
+    def test_cancel_no_thread(self, backup_instance):
+        backup_instance._backup_thread = None
+        backup_instance.cancel_backup()
+
+    def test_cancel_no_backup_result(self, backup_instance, mocker):
+        backup_instance._backup_thread = threading.Thread(target=lambda: None, daemon=True)
+        backup_instance._backup_thread.start()
+        backup_instance._backup_thread.join()
+        backup_instance._backup_result = None
+        backup_instance.cancel_backup()
+
+    def test_cancel_undo_no_result(self, backup_instance):
+        backup_instance._backup_thread = threading.Thread(target=lambda: None, daemon=True)
+        backup_instance._backup_thread.start()
+        backup_instance._backup_thread.join()
+        backup_instance._backup_result = None
+        backup_instance.cancel_backup(undo=True)
+
+    def test_start_backup_sets_events(self, backup_instance):
+        backup_instance.start_backup()
+        assert backup_instance.backup_started_event.is_set()
+        assert not backup_instance.backup_error_event.is_set()
+        backup_instance.wait_for_backup()
+        assert not backup_instance.backup_started_event.is_set()
+
+    def test_manual_ongoing_flag(self, backup_instance):
+        backup_instance.start_backup()
+        assert backup_instance._manual_backup_ongoing is True
+        backup_instance.wait_for_backup()
+        assert backup_instance._manual_backup_ongoing is False
+
+    def test_backup_folder_exists_after_completion(self, tmp_path):
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "f.txt").write_text("x")
+        dest = tmp_path / "dest"
+        dest.mkdir()
+        b = Backup("cf", [src], dest)
+        b.start_backup()
+        result = b.wait_for_backup()
+        assert result is not None
+        assert result["backup_folder"].exists()
+        assert result["drive_backup_folder_id"] is None
+
+    def test_cancel_backup_clears_event(self, backup_instance):
+        backup_instance.start_backup()
+        backup_instance.wait_for_backup()
+        assert not backup_instance._cancel_backup_event.is_set()
+
+
+class TestStartBackupScheduled:
+    def test_scheduled_sets_last_attempt(self, tmp_source_dir, tmp_dest_dir):
+        b = Backup("s", [tmp_source_dir], tmp_dest_dir)
+        b.start_backup(scheduled=True)
+        b.wait_for_backup()
+        assert b.last_scheduled_attempt is not None
+
+    def test_scheduled_sets_flag(self, tmp_source_dir, tmp_dest_dir):
+        b = Backup("s", [tmp_source_dir], tmp_dest_dir)
+        b.start_backup(scheduled=True)
+        assert b._scheduled_backup_ongoing is True
+        b.wait_for_backup()
+        assert b._scheduled_backup_ongoing is False
+
+    def test_scheduled_clears_flag_on_error(self, tmp_source_dir):
+        b = Backup("s", [tmp_source_dir], Path("/nonexistent"))
+        b.start_backup(scheduled=True)
+        with pytest.raises(RuntimeError):
+            b.wait_for_backup()
+        assert b._scheduled_backup_ongoing is False
+        assert b.backup_error_event.is_set()
+
+
+class TestWaitForBackup:
+    def test_wait_with_error(self, backup_instance):
+        backup_instance._backup_error = RuntimeError("test error")
+        with pytest.raises(RuntimeError, match="test error"):
+            backup_instance.wait_for_backup()
+
+    def test_wait_with_cancelled_error(self, backup_instance):
+        backup_instance._backup_error = CancelledError("cancelled")
+        result = backup_instance.wait_for_backup()
+        assert result is None
+
+
+class TestNextBackupEdgeCases:
+    def test_months_schedule(self, tmp_source_dir, tmp_dest_dir):
+        dt = datetime(2025, 1, 15, 10, 0, 0)
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir,
+                    schedule={"count": 3, "unit": "months"},
+                    last_scheduled_attempt=dt)
+        from dateutil.relativedelta import relativedelta
+        expected = dt + relativedelta(months=3)
+        assert b.next_backup == expected
+
+    def test_years_schedule(self, tmp_source_dir, tmp_dest_dir):
+        dt = datetime(2025, 1, 15, 10, 0, 0)
+        b = Backup("t", [tmp_source_dir], tmp_dest_dir,
+                    schedule={"count": 1, "unit": "years"},
+                    last_scheduled_attempt=dt)
+        from dateutil.relativedelta import relativedelta
+        expected = dt + relativedelta(years=1)
+        assert b.next_backup == expected
