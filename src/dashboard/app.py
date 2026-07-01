@@ -1,3 +1,4 @@
+import sys
 import webview
 from plyer import notification
 from pathlib import Path
@@ -5,32 +6,51 @@ from urllib.parse import quote
 from flask import Flask, render_template, abort, jsonify, request
 from werkzeug.exceptions import HTTPException
 
-from backup import Backup
-from backup.drive import DriveHandler
+from backup import Backup, DriveHandler
+from startup import is_in_startup, add_to_startup, remove_from_startup
 from .logger import logger
 
+
+app = Flask(__name__)
+app.jinja_env.filters["urlencode"] = lambda s: quote(str(s), safe="")
+
+
+PYTHON_EXECUTABLE: str = sys.executable
+DRIVE_BROWSER: DriveHandler = DriveHandler()
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 ICON_PATH = str(STATIC_DIR / "img" / "logo.png")
 
-BACKUP_CONFIGS_DIR: Path = None
-BACKUPS: dict[str, Backup]  = {}
-DRIVE_BROWSER: DriveHandler = DriveHandler()
 
-def set_backup_configs_dir(dir_path: str | Path) -> Path:
+DEFAULT_BACKUP_CONFIGS_DIR = Path.home() / "AutoBackup" / "backup_configs"
+BACKUP_CONFIGS_DIR: Path = DEFAULT_BACKUP_CONFIGS_DIR
+BACKUPS: dict[str, Backup]  = {}
+
+def set_backup_configs_dir(dir_path: str | Path = DEFAULT_BACKUP_CONFIGS_DIR) -> Path:
     global BACKUP_CONFIGS_DIR
     BACKUP_CONFIGS_DIR = Path(dir_path).resolve()
     BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
     return BACKUP_CONFIGS_DIR
 
-def set_backups(backups: dict) -> dict:
-    global BACKUPS
-    BACKUPS = backups
-    return BACKUPS
+def load_backups():
+    """Load the dictionary of backups from the directory of config JSONs."""
+    global BACKUP_CONFIGS_DIR, BACKUPS
+    BACKUPS = {}
+    if not (BACKUP_CONFIGS_DIR.exists() and BACKUP_CONFIGS_DIR.is_dir()):
+        raise ValueError(f"No config files directory at {BACKUP_CONFIGS_DIR.absolute()}")
+    for config_file in BACKUP_CONFIGS_DIR.iterdir():
+        if not (config_file.is_file() and config_file.suffix == ".json"):
+            continue
+        BACKUPS[config_file.stem] = Backup.from_json(config_file)
 
+def save_backups():
+    """Save the dictionary of backups to the directory as config JSONs."""
+    global BACKUPS, BACKUP_CONFIGS_DIR
+    if not (BACKUP_CONFIGS_DIR.exists() and BACKUP_CONFIGS_DIR.is_dir()):
+        raise ValueError(f"No config files directory at {BACKUP_CONFIGS_DIR.absolute()}")
+    for config_name, backup in BACKUPS.items():
+        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
+        backup.to_json(config_file)
 
-app = Flask(__name__)
-
-app.jinja_env.filters["urlencode"] = lambda s: quote(str(s), safe="")
 
 @app.route("/")
 def page_index():
@@ -62,6 +82,7 @@ def api_backups():
         logger.error(f"Failed to get backups: {e}")
         return jsonify({"error": f"Error while getting backups: {e}"}), 500
 
+
 @app.route("/api/backups/<config_name>/start_backup", methods=["POST"])
 def api_start_backup(config_name):
     logger.info(f"Attempting to start backup (/api/backups/{config_name}/start_backup)")
@@ -88,6 +109,7 @@ def api_cancel_backup(config_name):
         logger.error(f"Failed to cancel backup for {config_name}: {e}")
         return jsonify({"error": f"Error while cancelling backup for {config_name}: {e}"}), 500
 
+
 @app.route("/api/backups/<config_name>/start_scheduler", methods=["POST"])
 def api_start_scheduler(config_name):
     logger.info(f"Attempting to start scheduler (/api/backups/{config_name}/start_scheduler)")
@@ -113,6 +135,64 @@ def api_stop_scheduler(config_name):
     except Exception as e:
         logger.error(f"Failed to stop scheduler for {config_name}: {e}")
         return jsonify({"error": f"Error while stopping scheduler for {config_name}: {e}"}), 500
+
+
+@app.route("/api/backups/<config_name>/delete", methods=["POST"])
+def api_delete_backup(config_name):
+    logger.info(f"Attempting to delete backup (/api/backups/{config_name}/delete)")
+    backup = BACKUPS.get(config_name)
+    if not backup:
+        abort(404, f"No backup found for {config_name}")
+
+    try:
+        if backup.scheduler_running:
+            backup.stop_scheduler()
+        if backup.backup_running:
+            backup.cancel_backup()
+
+        del BACKUPS[config_name]
+
+        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
+        config_file.unlink(missing_ok=True)
+        return jsonify({"status": "backup deleted"}), 200
+    except Exception as e:
+        logger.error(f"Failed to delete backup for {config_name}: {e}")
+        return jsonify({"error": f"Error while deleting backup for {config_name}: {e}"}), 500
+
+
+@app.route("/api/backups/new", methods=["POST"])
+def api_new_backup():
+    logger.info("Attempting to create backup (/api/backups/new)")
+
+    try:
+        data = request.get_json() or {}
+        if not data:
+            return jsonify({"error": "Request body is required"}), 400
+
+        config_name = data.get("config_name")
+        if not config_name:
+            return jsonify({"error": "A config name is required"}), 400
+        if config_name in BACKUPS:
+            return jsonify({"error": f"A backup config with the name {config_name} already exists"}), 409
+        if not data.get("sources"):
+            return jsonify({"error": "At least one source is required"}), 400
+        if not data.get("destination"):
+            return jsonify({"error": "A Destination is required"}), 400
+
+        backup = Backup.from_dict(data)
+
+        try:
+            backup.verify_details()
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+        BACKUPS[config_name] = backup
+        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
+        backup.to_json(config_file)
+        return jsonify(backup.to_dict()), 201
+    except Exception as e:
+        logger.error(f"Failed to create backup: {e}")
+        return jsonify({"error": f"Error while creating backup: {e}"}), 500
 
 
 @app.route("/api/backups/<config_name>/edit", methods=["POST"])
@@ -151,61 +231,39 @@ def api_edit_backup(config_name):
         logger.error(f"Failed to update backup for {config_name}: {e}")
         return jsonify({"error": f"Error while updating backup for {config_name}: {e}"}), 500
 
-@app.route("/api/backups/new", methods=["POST"])
-def api_new_backup():
-    logger.info("Attempting to create backup (/api/backups/new)")
 
+@app.route("/api/startup/status")
+def api_startup_status():
+    configs_dir = BACKUP_CONFIGS_DIR
+    registered = is_in_startup(configs_dir) if configs_dir else False
+    return jsonify({
+        "registered": registered,
+        "configs_dir": str(configs_dir) if configs_dir else "",
+    })
+
+@app.route("/api/startup/add", methods=["POST"])
+def api_startup_add():
+    if not PYTHON_EXECUTABLE:
+        return jsonify({"error": "Python executable path not available"}), 500
     try:
-        data = request.get_json() or {}
-        if not data:
-            return jsonify({"error": "Request body is required"}), 400
-
-        config_name = data.get("config_name")
-        if not config_name:
-            return jsonify({"error": "A config name is required"}), 400
-        if config_name in BACKUPS:
-            return jsonify({"error": f"A backup config with the name {config_name} already exists"}), 409
-        if not data.get("sources"):
-            return jsonify({"error": "At least one source is required"}), 400
-        if not data.get("destination"):
-            return jsonify({"error": "A Destination is required"}), 400
-
-        backup = Backup.from_dict(data)
-
-        try:
-            backup.verify_details()
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400
-
-        BACKUPS[config_name] = backup
-        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
-        backup.to_json(config_file)
-        return jsonify(backup.to_dict()), 201
+        if is_in_startup(BACKUP_CONFIGS_DIR):
+            return jsonify({"error": "This configs directory is already registered for startup"}), 409
+        add_to_startup(BACKUP_CONFIGS_DIR, PYTHON_EXECUTABLE)
+        return jsonify({"status": "added to startup"}), 200
     except Exception as e:
-        logger.error(f"Failed to create backup: {e}")
-        return jsonify({"error": f"Error while creating backup: {e}"}), 500
+        logger.error(f"Failed to add to startup: {e}")
+        return jsonify({"error": f"Error adding to startup: {e}"}), 500
 
-@app.route("/api/backups/<config_name>/delete", methods=["POST"])
-def api_delete_backup(config_name):
-    logger.info(f"Attempting to delete backup (/api/backups/{config_name}/delete)")
-    backup = BACKUPS.get(config_name)
-    if not backup:
-        abort(404, f"No backup found for {config_name}")
-
+@app.route("/api/startup/remove", methods=["POST"])
+def api_startup_remove():
     try:
-        if backup.scheduler_running:
-            backup.stop_scheduler()
-        if backup.backup_running:
-            backup.cancel_backup()
-
-        del BACKUPS[config_name]
-
-        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
-        config_file.unlink(missing_ok=True)
-        return jsonify({"status": "backup deleted"}), 200
+        if not is_in_startup(BACKUP_CONFIGS_DIR):
+            return jsonify({"error": "This configs directory is not registered for startup"}), 404
+        remove_from_startup(BACKUP_CONFIGS_DIR)
+        return jsonify({"status": "removed from startup"}), 200
     except Exception as e:
-        logger.error(f"Failed to delete backup for {config_name}: {e}")
-        return jsonify({"error": f"Error while deleting backup for {config_name}: {e}"}), 500
+        logger.error(f"Failed to remove from startup: {e}")
+        return jsonify({"error": f"Error removing from startup: {e}"}), 500
 
 
 @app.route("/api/file_dialog", methods=["POST"])
@@ -249,7 +307,6 @@ def api_drive_auth():
         logger.error(f"Eror authenticating for Drive browser: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/api/drive/browse", methods=["POST"])
 def api_drive_browse():
     global DRIVE_BROWSER
@@ -276,7 +333,6 @@ def api_drive_browse():
         logger.error(f"Error opening folder in Drive browser: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/api/drive/up", methods=["POST"])
 def api_drive_up():
     global DRIVE_BROWSER
@@ -298,7 +354,6 @@ def api_drive_up():
     except Exception as e:
         logger.error(f"Error navigating to parent in Drive browser: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/drive/select", methods=["POST"])
 def api_drive_select():
