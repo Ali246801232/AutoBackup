@@ -4,7 +4,7 @@ from PIL import Image
 from pathlib import Path
 from plyer import notification
 
-from .app import set_backup_configs_dir, load_backups, save_backups, BACKUPS, BACKUP_CONFIGS_DIR, ICON_PATH
+from .app import app, set_backup_configs_dir, load_backups, save_backups, BACKUPS, BACKUP_CONFIGS_DIR, ICON_PATH
 from .logger import logger
 
 

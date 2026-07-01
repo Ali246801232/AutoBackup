@@ -33,22 +33,19 @@ def mock_setup_webview():
 class TestSetupBackups:
     def test_setup_backups_loads_and_starts_schedulers(self, tmp_path, backup_instance):
         from dashboard.runner import setup_backups
-        import dashboard.runner as runner
+        import dashboard.app
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
-        runner.BACKUP_CONFIGS_DIR = configs_dir
         backup_instance.to_json(configs_dir / "test.json")
-        runner.BACKUPS = {}
-        setup_backups()
-        assert "test" in runner.BACKUPS
+        setup_backups(configs_dir, start_schedulers=True)
+        assert "test" in dashboard.app.BACKUPS
 
-    def test_setup_backups_handles_load_error(self, tmp_path):
+    def test_setup_backups_creates_configs_dir(self, tmp_path):
         from dashboard.runner import setup_backups
-        import dashboard.runner as runner
+        import dashboard.app
         configs_dir = tmp_path / "nonexistent"
-        runner.BACKUP_CONFIGS_DIR = configs_dir
-        with pytest.raises(Exception):
-            setup_backups()
+        setup_backups(configs_dir)
+        assert configs_dir.exists()
 
     def test_setup_backups_handles_scheduler_error(self, tmp_path, backup_instance):
         from dashboard.runner import setup_backups
@@ -56,11 +53,9 @@ class TestSetupBackups:
         import dashboard.runner as runner
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
-        runner.BACKUP_CONFIGS_DIR = configs_dir
         backup_instance.to_json(configs_dir / "test.json")
-        runner.BACKUPS = {}
         with patch.object(Backup, "start_scheduler", side_effect=Exception("sched err")):
-            setup_backups()
+            setup_backups(configs_dir, start_schedulers=True)
 
 
 class TestCleanupBackups:
@@ -109,48 +104,62 @@ class TestCleanupBackups:
 
 class TestLoadBackupsRunner:
     def test_load_backups_skips_non_json_files(self, tmp_path):
-        from dashboard.runner import load_backups
+        import dashboard.app
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
         (configs_dir / "not_json.txt").write_text("{}")
-        result = load_backups(configs_dir)
-        assert result == {}
+        dashboard.app.BACKUP_CONFIGS_DIR = configs_dir
+        from dashboard.app import load_backups
+        load_backups()
+        assert dashboard.app.BACKUPS == {}
 
     def test_load_backups_invalid_json(self, tmp_path):
-        from dashboard.runner import load_backups
+        import dashboard.app
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
         (configs_dir / "bad.json").write_text("not json")
+        dashboard.app.BACKUP_CONFIGS_DIR = configs_dir
+        from dashboard.app import load_backups
         with pytest.raises(json.JSONDecodeError):
-            load_backups(configs_dir)
+            load_backups()
 
     def test_load_backups_nonexistent_dir(self, tmp_path):
-        from dashboard.runner import load_backups
+        import dashboard.app
+        dashboard.app.BACKUP_CONFIGS_DIR = tmp_path / "nonexistent"
+        from dashboard.app import load_backups
         with pytest.raises(ValueError, match="No config files directory at"):
-            load_backups(tmp_path / "nonexistent")
+            load_backups()
 
     def test_load_backups_empty_dir(self, tmp_path):
-        from dashboard.runner import load_backups
+        import dashboard.app
         configs_dir = tmp_path / "empty"
         configs_dir.mkdir()
-        result = load_backups(configs_dir)
-        assert result == {}
+        dashboard.app.BACKUP_CONFIGS_DIR = configs_dir
+        from dashboard.app import load_backups
+        load_backups()
+        assert dashboard.app.BACKUPS == {}
 
 
 class TestSaveBackupsRunner:
     def test_save_backups(self, tmp_path, backup_instance):
-        from dashboard.runner import save_backups
+        import dashboard.app
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
-        save_backups({"test": backup_instance}, configs_dir)
+        dashboard.app.BACKUP_CONFIGS_DIR = configs_dir
+        dashboard.app.BACKUPS = {"test": backup_instance}
+        from dashboard.app import save_backups
+        save_backups()
         assert (configs_dir / "test.json").exists()
         data = json.loads((configs_dir / "test.json").read_text())
         assert data["config_name"] == "test_backup"
 
     def test_save_backups_nonexistent_dir(self, tmp_path, backup_instance):
-        from dashboard.runner import save_backups
+        import dashboard.app
+        dashboard.app.BACKUP_CONFIGS_DIR = tmp_path / "nonexistent"
+        dashboard.app.BACKUPS = {"test": backup_instance}
+        from dashboard.app import save_backups
         with pytest.raises(ValueError, match="No config files directory at"):
-            save_backups({"test": backup_instance}, tmp_path / "nonexistent")
+            save_backups()
 
 
 class TestWebviewFunctions:
@@ -260,59 +269,44 @@ class TestSetupCleanupWebview:
             assert runner.FIRST_HIDE is False
 
 
-class TestSetupCleanup:
-    def test_setup_calls_internal_functions(self):
-        with (
-            patch("dashboard.runner.setup_backups") as mock_setup_b,
-            patch("dashboard.runner.setup_webview") as mock_setup_w,
-        ):
-            from dashboard.runner import setup
-            setup()
-            mock_setup_b.assert_called_once()
-            mock_setup_w.assert_called_once()
-
-    def test_cleanup_calls_internal_functions(self):
-        with (
-            patch("dashboard.runner.cleanup_webview") as mock_cleanup_w,
-            patch("dashboard.runner.cleanup_backups") as mock_cleanup_b,
-        ):
-            from dashboard.runner import cleanup
-            cleanup()
-            mock_cleanup_w.assert_called_once()
-            mock_cleanup_b.assert_called_once()
-
-
 class TestRunApp:
     def test_run_app_default_configs_dir(self, mock_setup_webview):
         with (
-            patch("dashboard.runner.setup") as mock_setup,
-            patch("dashboard.runner.cleanup") as mock_cleanup,
+            patch("dashboard.runner.setup_backups") as mock_setup_b,
+            patch("dashboard.runner.setup_webview") as mock_setup_w,
+            patch("dashboard.runner.cleanup_backups") as mock_cleanup_b,
+            patch("dashboard.runner.cleanup_webview") as mock_cleanup_w,
             patch("dashboard.runner.webview") as mock_wv,
         ):
             from dashboard.runner import run_app
-            import dashboard.app
             run_app()
-            assert dashboard.app.BACKUP_CONFIGS_DIR is not None
-            mock_setup.assert_called_once()
-            mock_cleanup.assert_called_once()
+            mock_setup_b.assert_called_once()
+            mock_setup_w.assert_called_once()
+            mock_cleanup_b.assert_called_once()
+            mock_cleanup_w.assert_called_once()
 
     def test_run_app_custom_configs_dir(self, mock_setup_webview, tmp_path):
         with (
-            patch("dashboard.runner.setup") as mock_setup,
-            patch("dashboard.runner.cleanup") as mock_cleanup,
+            patch("dashboard.runner.setup_backups") as mock_setup_b,
+            patch("dashboard.runner.setup_webview") as mock_setup_w,
+            patch("dashboard.runner.cleanup_backups") as mock_cleanup_b,
+            patch("dashboard.runner.cleanup_webview") as mock_cleanup_w,
         ):
             from dashboard.runner import run_app
-            import dashboard.app
             custom_dir = tmp_path / "custom_configs"
             run_app(str(custom_dir))
-            assert dashboard.app.BACKUP_CONFIGS_DIR == custom_dir.resolve()
-            assert custom_dir.exists()
+            mock_setup_b.assert_called_once_with(str(custom_dir), False)
+            mock_setup_w.assert_called_once_with(False)
+            mock_cleanup_b.assert_called_once()
+            mock_cleanup_w.assert_called_once()
 
     def test_run_app_handles_setup_exception(self, mock_setup_webview):
         with (
-            patch("dashboard.runner.setup", side_effect=Exception("setup fail")),
-            patch("dashboard.runner.cleanup") as mock_cleanup,
+            patch("dashboard.runner.setup_backups", side_effect=Exception("setup fail")),
+            patch("dashboard.runner.cleanup_backups") as mock_cleanup_b,
+            patch("dashboard.runner.cleanup_webview") as mock_cleanup_w,
         ):
             from dashboard.runner import run_app
             run_app()
-            mock_cleanup.assert_called_once()
+            mock_cleanup_b.assert_called_once()
+            mock_cleanup_w.assert_called_once()

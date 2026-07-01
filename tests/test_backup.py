@@ -711,7 +711,7 @@ class TestCancelBackupEdgeCases:
         backup_instance._backup_thread = None
         backup_instance.cancel_backup()
 
-    def test_cancel_no_backup_result(self, backup_instance, mocker):
+    def test_cancel_no_backup_result(self, backup_instance):
         backup_instance._backup_thread = threading.Thread(target=lambda: None, daemon=True)
         backup_instance._backup_thread.start()
         backup_instance._backup_thread.join()

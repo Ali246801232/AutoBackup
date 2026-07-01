@@ -6,6 +6,12 @@ from unittest.mock import MagicMock, patch
 for _mod in ("pystray", "PIL", "PIL.Image", "webview"):
     sys.modules.setdefault(_mod, MagicMock())
 
+_startup = MagicMock()
+_startup.is_in_startup.return_value = False
+_startup.add_to_startup.return_value = None
+_startup.remove_from_startup.return_value = None
+sys.modules.setdefault("startup", _startup)
+
 import pytest
 
 
