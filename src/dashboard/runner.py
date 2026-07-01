@@ -1,5 +1,6 @@
 import pystray
 from PIL import Image
+from plyer import notification
 import webview
 from pathlib import Path
 
@@ -109,7 +110,11 @@ def on_window_closing():
         if TRAY_ICON:
             TRAY_ICON.update_menu()
         if FIRST_HIDE:
-            TRAY_ICON.notify(message="Closing minizes to system tray.\nTo restore or quit, use the tray icon.\nQuitting cancels ongoing and scheduled backups.")
+            notification.notify(
+                title="AutoBackup",
+                message="Closing minimizes to system tray.\nTo restore or quit, use the tray icon.\nQuitting cancels ongoing and scheduled backups.",
+                timeout=5,
+            )
             FIRST_HIDE = False
         logger.info("Webview window hidden")
     return False

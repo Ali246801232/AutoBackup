@@ -322,7 +322,7 @@ def api_notify():
     message = data.get("message", "")
     logger.info(f"Sending notification: {title} — {message}")
     try:
-        notification.notify(title=title, message=message, app_name="AutoBackup", app_icon=LOGO_PATH, timeout=5)
+        notification.notify(title=title, message=message, app_name="AutoBackup", app_icon=ICON_PATH, timeout=5)
         return jsonify({"status": "notification sent"})
     except Exception as e:
         logger.error(f"Failed to send notification: {e}")
