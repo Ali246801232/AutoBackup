@@ -1,3 +1,5 @@
+<img align="right" width="160" src="src/dashboard/static/img/logo.png">
+
 # AutoBackup
 
 A desktop application made with Python for automated backups with optional Google Drive upload.
