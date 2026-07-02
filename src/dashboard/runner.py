@@ -2,7 +2,6 @@ import pystray
 import webview
 from PIL import Image
 from pathlib import Path
-from notifypy import Notify
 
 from .app import app, set_backup_configs_dir, load_backups, save_backups, BACKUPS, BACKUP_CONFIGS_DIR, ICON_PATH, NOTIFIER
 from .logger import logger
