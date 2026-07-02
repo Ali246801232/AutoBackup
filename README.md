@@ -5,7 +5,7 @@ A desktop application made with Python for automated backups with optional Googl
 
 ## Overview
 
-AutoBackup lets you define backup configs to use. Each config requires a name, one or more source paths, and a destination directory. Optionally, it may also specify paths to exclude, a schedule for recurring backups, and an option to upload to a Google Drive folder (requires [some setup](#google-drive-setup)).
+AutoBackup lets you define backup configs to use. Each config requires a name, one or more source paths, and a destination directory. Optionally, it may also specify paths to exclude, a schedule for recurring backups (requires adding to startup), and an option to upload to a Google Drive folder (requires [some setup](#google-drive-setup)).
 
 The application runs as a desktop application with a system tray icon and provides a [Flask](https://flask.palletsprojects.com/) webapp for the dashboard that runs in a [pywebview](https://pywebview.flowrl.com/) window for managing backup configs.
 
@@ -45,6 +45,10 @@ The application runs as a desktop application with a system tray icon and provid
 
 6. Create a new backup config with the `+` button.
 
+7. To use scheduling, add the config directory to run at startup from `≡` → `⏻ Startup Settings` → `Add to Startup`.
+
+> [!INFO]
+> Scheduling is only supported for Windows, Linux, and macOS.
 
 ## Google Drive Setup
 

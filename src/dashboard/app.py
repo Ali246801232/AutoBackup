@@ -253,7 +253,7 @@ def api_startup_add():
         return jsonify({"error": "Python executable path not available"}), 500
     try:
         if is_in_startup(BACKUP_CONFIGS_DIR):
-            return jsonify({"error": "This configs directory is already registered for startup"}), 409
+            return jsonify({"error": "This configs directory is already registered to run at startup"}), 409
         add_to_startup(BACKUP_CONFIGS_DIR, PYTHON_EXECUTABLE)
         return jsonify({"status": "added to startup"}), 200
     except Exception as e:
@@ -264,7 +264,7 @@ def api_startup_add():
 def api_startup_remove():
     try:
         if not is_in_startup(BACKUP_CONFIGS_DIR):
-            return jsonify({"error": "This configs directory is not registered for startup"}), 404
+            return jsonify({"error": "This configs directory is not registered to run at startup"}), 404
         remove_from_startup(BACKUP_CONFIGS_DIR)
         return jsonify({"status": "removed from startup"}), 200
     except Exception as e:

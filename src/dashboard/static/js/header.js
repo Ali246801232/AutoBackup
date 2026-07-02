@@ -114,13 +114,13 @@ function showErrorModal(message) {
             footerEl.innerHTML = '<button class="btn btn-secondary" onclick="document.getElementById(\'modal-container\').hidden=true">Close</button>';
         } else if (registered) {
             statusEl.className = "startup-status registered";
-            statusEl.innerHTML = '<i data-lucide="check-circle" style="width:18px;height:18px"></i> This configs directory is registered for startup.';
+            statusEl.innerHTML = '<i data-lucide="check-circle" style="width:18px;height:18px"></i> This configs directory is registered to run at startup.';
             footerEl.innerHTML =
                 '<button class="btn btn-secondary" onclick="document.getElementById(\'modal-container\').hidden=true">Close</button>' +
                 '<button class="btn btn-danger" id="startup-remove-btn">Remove from Startup</button>';
         } else {
             statusEl.className = "startup-status not-registered";
-            statusEl.innerHTML = '<i data-lucide="clock" style="width:18px;height:18px"></i> This configs directory is not registered for startup.';
+            statusEl.innerHTML = '<i data-lucide="clock" style="width:18px;height:18px"></i> This configs directory is not registered to run at startup.';
             footerEl.innerHTML =
                 '<button class="btn btn-secondary" onclick="document.getElementById(\'modal-container\').hidden=true">Close</button>' +
                 '<button class="btn btn-primary" id="startup-add-btn">Add to Startup</button>';
