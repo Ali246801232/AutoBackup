@@ -47,7 +47,7 @@ The application runs as a desktop application with a system tray icon and provid
 
 7. To use scheduling, add the config directory to run at startup from `≡` → `⏻ Startup Settings` → `Add to Startup`.
 
-> [!INFO]
+> [!NOTE]
 > Scheduling is only supported for Windows, Linux, and macOS.
 
 ## Google Drive Setup
