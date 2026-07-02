@@ -1,6 +1,6 @@
 ## Startup functionality
 
-- Upon startup, we run a script with a number of `"{app.PYTHON_EXECUTABLE}" -m AutoBackup --configs-dir "{app.BACKUP_CONFIGS_DIR}" --start-minimized --start-schedulers` commands to start the app and its schedulers.
+- Upon startup, we run a script with a number of `\"{python_executable}\" -m AutoBackup --configs-dir \"{configs_dir}\" --start-minimized --start-schedulers` commands to start the app and its schedulers; assuming this python executable could launch the app manually, it should work for startup.
 - To add a backup configs dir to start, you run the app manually with that configs dir (`AutoBackup --configs-dir "whatever/configs/dir"`) and then add it to startup from there.
 - So if the user wants to have multiple configs dirs, to add them to startup, launch the app multiple times with each configs dirs, and then add to startup from each.
 

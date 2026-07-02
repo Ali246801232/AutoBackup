@@ -6,9 +6,10 @@ class TestBackup:
         import backup
         assert backup is not None
 
-    def test_all_exports(self):
+    def test_exports(self):
         from backup import Backup, DriveHandler
-        assert Backup is not None and DriveHandler is not None
+        assert Backup is not None
+        assert DriveHandler is not None
 
 
 class TestDashboard:
@@ -16,9 +17,10 @@ class TestDashboard:
         import dashboard
         assert dashboard is not None
 
-    def test_all_exports(self):
+    def test_exports(self):
         from dashboard import run_app, set_backup_configs_dir
-        assert run_app is not None and set_backup_configs_dir is not None
+        assert run_app is not None
+        assert set_backup_configs_dir is not None
 
 
 class TestAutoBackup:
@@ -29,3 +31,15 @@ class TestAutoBackup:
     def test_main(self):
         import AutoBackup.__main__
         assert AutoBackup.__main__ is not None
+
+
+class TestStartup:
+    def test_init(self):
+        import startup
+        assert startup is not None
+    
+    def test_exports(self):
+        from startup import is_in_startup, add_to_startup, remove_from_startup
+        assert is_in_startup is not None
+        assert add_to_startup is not None
+        assert remove_from_startup is not None
