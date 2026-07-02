@@ -1,3 +1,5 @@
+"""Test src/dashboard/runner.py."""
+
 import json
 from unittest.mock import MagicMock, patch
 

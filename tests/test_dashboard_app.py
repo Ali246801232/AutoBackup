@@ -1,3 +1,5 @@
+"""Test src/dashboard/app.py."""
+
 import json
 import sys
 from unittest.mock import MagicMock, patch

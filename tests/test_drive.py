@@ -1,3 +1,5 @@
+"""Test src/backup/drive.py."""
+
 import threading
 from unittest.mock import MagicMock, patch
 

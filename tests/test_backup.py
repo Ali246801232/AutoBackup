@@ -1,3 +1,5 @@
+"""Test src/backup/backup.py."""
+
 import time
 import threading
 from pathlib import Path
