@@ -8,7 +8,7 @@
 - Adds the right type script to the right place depending on the platform; planning to support Windows, Linux, macOS.
 - Allows registering and unregistering of a configs dir to startup by modifying the script, and checking the script for if a configs dir already registered.
 
-`src/dashboard/`:
+`src/dashboard/`: DONE
 - Replace the theme button with a hamburger button that opens a dropdown with the theme button and a button to open the startup modal.
 - Startup modal shows whether the configs dir is added to startup and has a button that switches between "Add to Startup" and "Remove from Startup" depending on status.
 - Status and buttons use the API cals in `app.py`: `/api/startup/status`, `/api/startup/add`, `api/startup/remove`.

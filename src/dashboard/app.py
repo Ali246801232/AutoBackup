@@ -14,6 +14,10 @@ from .logger import logger
 app = Flask(__name__)
 app.jinja_env.filters["urlencode"] = lambda s: quote(str(s), safe="")
 
+@app.context_processor
+def inject_globals():
+    return {"configs_dir": str(BACKUP_CONFIGS_DIR)}
+
 
 PYTHON_EXECUTABLE: str = sys.executable
 DRIVE_BROWSER: DriveHandler = DriveHandler()
