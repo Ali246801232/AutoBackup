@@ -3,7 +3,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 # Mock GUI-only dependencies before any module imports
-for _mod in ("pystray", "PIL", "PIL.Image", "webview"):
+for _mod in ("pystray", "PIL", "PIL.Image", "webview", "notifypy"):
     sys.modules.setdefault(_mod, MagicMock())
 
 _startup = MagicMock()
@@ -43,11 +43,11 @@ def setup_backups(tmp_path):
 
 
 @pytest.fixture
-def valid_backup_dict(tmp_source_dir, tmp_dest_dir):
+def valid_backup_dict(tmp_source, tmp_destination):
     return {
         "config_name": "test_config",
-        "sources": [str(tmp_source_dir)],
-        "destination": str(tmp_dest_dir),
+        "sources": [str(tmp_source)],
+        "destination": str(tmp_destination),
         "exclusions": [],
         "schedule": None,
         "drive_upload": False,
@@ -497,25 +497,27 @@ class TestFileDialog:
 class TestNotifyAPI:
     def test_notify_success(self, client):
         import dashboard.app
-        with patch.object(dashboard.app.notification, "notify") as mock_notify:
+        with patch("dashboard.app.Notify") as mock_notify:
             resp = client.post("/api/notify", json={"title": "Test", "message": "Hello"})
             assert resp.status_code == 200
             assert resp.get_json()["status"] == "notification sent"
-            mock_notify.assert_called_once_with(
-                title="Test", message="Hello", app_name="AutoBackup",
-                app_icon=mock_notify.call_args[1]["app_icon"], timeout=5
-            )
+            instance = mock_notify.return_value
+            assert instance.title == "Test"
+            assert instance.message == "Hello"
+            instance.send.assert_called_once_with(block=False)
 
     def test_notify_default_title(self, client):
         import dashboard.app
-        with patch.object(dashboard.app.notification, "notify"):
+        with patch("dashboard.app.Notify"):
             resp = client.post("/api/notify", json={"message": "Hello"})
             assert resp.status_code == 200
             assert resp.get_json()["status"] == "notification sent"
 
     def test_notify_exception(self, client):
         import dashboard.app
-        with patch.object(dashboard.app.notification, "notify", side_effect=Exception("notify fail")):
+        mock_notify = MagicMock()
+        mock_notify.send.side_effect = Exception("notify fail")
+        with patch("dashboard.app.Notify", return_value=mock_notify):
             resp = client.post("/api/notify", json={"title": "T", "message": "M"})
             assert resp.status_code == 500
             assert "notify fail" in resp.get_json()["error"]

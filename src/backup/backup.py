@@ -64,10 +64,13 @@ class Backup:
         self._stop_scheduler_event: threading.Event = threading.Event()
         self.last_scheduled_attempt: datetime|None = last_scheduled_attempt
 
-        # Externally exposed state events
+        # Externally exposed state
         self.backup_started_event = threading.Event()
+        self.backup_ended_event = threading.Event()
         self.backup_error_event = threading.Event()
+        # @property self.backup_running -> bool
         self.scheduler_started_event = threading.Event()
+        self.scheduler_ended_event = threading.Event()
         self.scheduler_error_event = threading.Event()
         self.scheduler_running: bool = False
 
@@ -212,8 +215,10 @@ class Backup:
         return {
             "backup_running": self.backup_running,
             "backup_error": self.backup_error_event.is_set(),
+            "backup_error_message": str(self._backup_error) if self._backup_error and self.backup_error_event.is_set() else None,
             "scheduler_running": self.scheduler_running,
             "scheduler_error": self.scheduler_error_event.is_set(),
+            "scheduler_error_message": str(self._scheduler_error) if self._scheduler_error and self.scheduler_error_event.is_set() else None,
             "backup_progress": self.backup_progress
         }
 
@@ -300,23 +305,31 @@ class Backup:
         errors = []
 
         if not self.config_name:
-            errors.append("Backup has no configuration name set.")
+            errors.append("Backup has no configuration name set")
         elif not isinstance(self.config_name, str):
             errors.append("Backup configuration name is not a string")
 
         if not self.sources:
             errors.append("Backup has no sources set.")
-        elif not (isinstance(self.sources, list) and all(isinstance(source, Path) for source in self.sources)):
-            errors.append("Backup sources is not a list of paths")
         else:
-            missing_sources = [str(s.absolute()) for s in self.sources if not s.exists()]
+            invalid_sources = [s for s in self.sources if not isinstance(s, Path)]
+            if invalid_sources:
+                errors.append(f"The following backup sources are not paths: {invalid_sources}")
+            missing_sources = [str(s.absolute()) for s in self.sources if isinstance(s, Path) and not s.exists()]
             if missing_sources:
                 errors.append(f"The following backup sources do not exist: {missing_sources}")
 
         if not self.destination:
-            errors.append("Backup has no destination set.")
+            errors.append("Backup has no destination set")
+        elif not isinstance(self.destination, Path):
+            errors.append("Backup destination is not a path")
         elif not self.destination.exists():
-            errors.append(f"Backup destination {self.destination.absolute()} does not exist.")
+            errors.append(f"Backup destination {self.destination.absolute()} does not exist")
+
+        if self.exclusions:
+            invalid_exclusions = [e for e in self.exclusions if not isinstance(e, Path)]
+            if invalid_exclusions:
+                errors.append(f"The following backup exclusions are not paths: {invalid_exclusions}")
 
         if self.schedule is not None:
             if not isinstance(self.schedule, dict):
@@ -328,7 +341,7 @@ class Backup:
                     errors.append("Backup schedule is not a dictionary in the form {\"count\": int, \"unit\": str}")
                 else:
                     if count < 1:
-                        errors.append("Backup schedule count must be positive")
+                        errors.append("Backup schedule count is not a positive integer")
                     if _SCHEDULE_UNITS.get(unit) is None:
                         errors.append(f"Backup schedule unit is not one of {list(_SCHEDULE_UNITS.keys())}")
 
@@ -336,12 +349,12 @@ class Backup:
             try:
                 free_space = shutil.disk_usage(self.destination).free
                 if self.size_bytes > free_space:
-                    errors.append(f"Backup destination at {self.destination} does not have enough space to store backup.")
+                    errors.append(f"Backup destination at {self.destination} does not have enough space to store backup")
             except Exception as e:
                 errors.append(f"Cannot determine disk usage for destination {self.destination}: {e}")
 
         if self.drive_upload and not (self.drive_folder_id and isinstance(self.drive_folder_id, str)):
-            errors.append("Backup does not have a Drive folder to upload to.")
+            errors.append("Backup does not have a Drive folder to upload to")
 
         if errors:
             raise ValueError("\n".join(errors))
@@ -432,10 +445,12 @@ class Backup:
                     if scheduled: self._scheduled_backup_ongoing = False
                     else: self._manual_backup_ongoing = False
                     self.backup_started_event.clear()
+                    self.backup_ended_event.set()
 
             if scheduled: self._scheduled_backup_ongoing = True
             else: self._manual_backup_ongoing = True
             self.backup_started_event.set()
+            self.backup_ended_event.clear()
             self.backup_error_event.clear()
 
             self._backup_thread = threading.Thread(target=runner, daemon=True)
@@ -528,9 +543,11 @@ class Backup:
             finally:
                 self.scheduler_running = False
                 self.scheduler_started_event.clear()
+                self.scheduler_ended_event.set()
 
         self.scheduler_running = True
         self.scheduler_started_event.set()
+        self.scheduler_ended_event.clear()
         self.scheduler_error_event.clear()
 
         self._scheduler_thread = threading.Thread(target=runner, daemon=True)

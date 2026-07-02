@@ -142,12 +142,13 @@
     }
 
     function renderCard(name, backup) {
-        var s = backup.status || {};
-        var running = s.backup_running;
-        var error = s.backup_error;
-        var schedRunning = s.scheduler_running;
-        var schedError = s.scheduler_error;
-        var progress = s.backup_progress || {};
+        var status = backup.status || {};
+        var running = status.backup_running;
+        var error = status.backup_error;
+        var errorMessage = status.backup_error_message;
+        var schedRunning = status.scheduler_running;
+        var schedError = status.scheduler_error;
+        var progress = status.backup_progress || {};
 
         var schedBadge, schedClass;
         if (schedRunning) { schedBadge = "Running"; schedClass = "badge-running"; }
@@ -196,6 +197,7 @@
                     '<div class="progress-bar-fill ' + barClass + '" style="width:' + barWidth + '"></div>' +
                 '</div>' +
                 progressMsg +
+                (error && errorMessage ? '<div class="error-message">' + escapeHtml(errorMessage) + '</div>' : '') +
             '</div>' +
             '<div class="card-actions">' +
                 backupBtn +
@@ -228,6 +230,7 @@
             html += renderCard(names[i], backups[names[i]]);
         }
         grid.innerHTML = html;
+
         if (typeof lucide !== "undefined") lucide.createIcons();
     }
 
@@ -239,7 +242,8 @@
             var cs = cur.status || {};
 
             if (!os.backup_error && cs.backup_error) {
-                showToast('Backup "' + name + '" failed', 'error');
+                var msg = cs.backup_error_message || 'failed';
+                showToast('Backup "' + name + '" ' + msg, 'error');
             }
             if (!os.backup_running && cs.backup_running) {
                 showToast('Backup "' + name + '" started', 'info');

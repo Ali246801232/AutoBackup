@@ -11,8 +11,7 @@ def _mock_gui_deps():
         "PIL": MagicMock(),
         "PIL.Image": MagicMock(),
         "webview": MagicMock(),
-        "plyer": MagicMock(),
-        "plyer.notification": MagicMock(),
+        "notifypy": MagicMock(),
     }):
         yield
 
@@ -36,9 +35,9 @@ class TestSetupBackups:
         import dashboard.app
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
-        backup_instance.to_json(configs_dir / "test.json")
+        backup_instance.to_json(configs_dir / "test_backup.json")
         setup_backups(configs_dir, start_schedulers=True)
-        assert "test" in dashboard.app.BACKUPS
+        assert "test_backup" in dashboard.app.BACKUPS
 
     def test_setup_backups_creates_configs_dir(self, tmp_path):
         from dashboard.runner import setup_backups
@@ -53,7 +52,7 @@ class TestSetupBackups:
         import dashboard.runner as runner
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
-        backup_instance.to_json(configs_dir / "test.json")
+        backup_instance.to_json(configs_dir / "test_backup.json")
         with patch.object(Backup, "start_scheduler", side_effect=Exception("sched err")):
             setup_backups(configs_dir, start_schedulers=True)
 
@@ -66,9 +65,9 @@ class TestCleanupBackups:
         configs_dir.mkdir()
         runner.BACKUP_CONFIGS_DIR = configs_dir
         backup = MagicMock()
-        backup.config_name = "test"
-        backup.to_dict.return_value = {"config_name": "test"}
-        runner.BACKUPS = {"test": backup}
+        backup.config_name = "test_backup"
+        backup.to_dict.return_value = {"config_name": "test_backup"}
+        runner.BACKUPS = {"test_backup": backup}
         cleanup_backups()
         backup.stop_scheduler.assert_called_once()
         backup.cancel_backup.assert_called_once()
@@ -83,9 +82,9 @@ class TestCleanupBackups:
         from dashboard.runner import cleanup_backups
         import dashboard.runner as runner
         backup = MagicMock()
-        backup.config_name = "test"
+        backup.config_name = "test_backup"
         runner.BACKUP_CONFIGS_DIR = None
-        runner.BACKUPS = {"test": backup}
+        runner.BACKUPS = {"test_backup": backup}
         cleanup_backups()
         backup.stop_scheduler.assert_called_once()
 
@@ -96,9 +95,9 @@ class TestCleanupBackups:
         configs_dir.mkdir()
         runner.BACKUP_CONFIGS_DIR = configs_dir
         backup = MagicMock()
-        backup.config_name = "test"
+        backup.config_name = "test_backup"
         backup.stop_scheduler.side_effect = Exception("stop err")
-        runner.BACKUPS = {"test": backup}
+        runner.BACKUPS = {"test_backup": backup}
         cleanup_backups()
 
 
@@ -146,17 +145,17 @@ class TestSaveBackupsRunner:
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
         dashboard.app.BACKUP_CONFIGS_DIR = configs_dir
-        dashboard.app.BACKUPS = {"test": backup_instance}
+        dashboard.app.BACKUPS = {"test_backup": backup_instance}
         from dashboard.app import save_backups
         save_backups()
-        assert (configs_dir / "test.json").exists()
-        data = json.loads((configs_dir / "test.json").read_text())
+        assert (configs_dir / "test_backup.json").exists()
+        data = json.loads((configs_dir / "test_backup.json").read_text())
         assert data["config_name"] == "test_backup"
 
     def test_save_backups_nonexistent_dir(self, tmp_path, backup_instance):
         import dashboard.app
         dashboard.app.BACKUP_CONFIGS_DIR = tmp_path / "nonexistent"
-        dashboard.app.BACKUPS = {"test": backup_instance}
+        dashboard.app.BACKUPS = {"test_backup": backup_instance}
         from dashboard.app import save_backups
         with pytest.raises(ValueError, match="No config files directory at"):
             save_backups()
@@ -202,12 +201,12 @@ class TestWebviewFunctions:
         runner.QUITTING = False
         runner.WINDOW_VISIBLE = True
         runner.FIRST_HIDE = True
-        with patch("dashboard.runner.notification") as mock_notify:
+        with patch("dashboard.runner.Notify") as mock_notify:
             result = on_window_closing()
         assert result is False
         window.hide.assert_called_once()
         assert runner.WINDOW_VISIBLE is False
-        mock_notify.notify.assert_called_once()
+        mock_notify.return_value.send.assert_called_once()
 
     def test_on_window_closing_quitting(self):
         from dashboard.runner import on_window_closing
@@ -263,9 +262,9 @@ class TestSetupCleanupWebview:
         runner.TRAY_ICON = MagicMock()
         runner.QUITTING = False
         runner.FIRST_HIDE = True
-        with patch("dashboard.runner.notification") as mock_notif:
+        with patch("dashboard.runner.Notify") as mock_notif:
             on_window_closing()
-            mock_notif.notify.assert_called_once()
+            mock_notif.return_value.send.assert_called_once()
             assert runner.FIRST_HIDE is False
 
 

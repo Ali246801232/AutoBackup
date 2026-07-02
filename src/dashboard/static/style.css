@@ -327,6 +327,13 @@ input, select, button, textarea {
   margin-top: 6px;
 }
 
+.error-message {
+  font-size: 0.8rem;
+  color: var(--color-error);
+  margin-top: 6px;
+  word-break: break-word;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }

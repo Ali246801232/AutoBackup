@@ -2,9 +2,9 @@ import pystray
 import webview
 from PIL import Image
 from pathlib import Path
-from plyer import notification
+from notifypy import Notify
 
-from .app import app, set_backup_configs_dir, load_backups, save_backups, BACKUPS, BACKUP_CONFIGS_DIR, ICON_PATH
+from .app import app, set_backup_configs_dir, load_backups, save_backups, BACKUPS, BACKUP_CONFIGS_DIR, ICON_PATH, NOTIFIER
 from .logger import logger
 
 
@@ -15,7 +15,7 @@ QUITTING = False
 FIRST_HIDE = True
 
 
-def setup_backups(backup_configs_dir: Path, start_schedulers: bool = False):
+def setup_backups(backup_configs_dir: Path = None, start_schedulers: bool = False):
     """Load all backups from config directory, and optionally start their schedulers"""
     logger.info("Attempting to load backups")
     try:
@@ -80,11 +80,9 @@ def on_window_closing():
         if TRAY_ICON:
             TRAY_ICON.update_menu()
         if FIRST_HIDE:
-            notification.notify(
-                title="AutoBackup",
-                message="Closing minimizes to system tray.\nTo restore or quit, use the tray icon.\nQuitting cancels ongoing and scheduled backups.",
-                timeout=5,
-            )
+            NOTIFIER.title = "AutoBackup"
+            NOTIFIER.message = "Closing minimizes to system tray.\nTo restore or quit, use the tray icon.\nQuitting cancels ongoing and scheduled backups."
+            NOTIFIER.send(block=False)
             FIRST_HIDE = False
         logger.info("Webview window hidden")
     return False
@@ -132,8 +130,13 @@ def cleanup_webview():
         WINDOW = None
 
 
-def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = False, start_minimized: bool = False):
+def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, start_minimized: bool = None):
     logger.info("Running webapp")
+
+    if start_schedulers is None:
+        start_schedulers = False
+    if start_minimized is None:
+        start_minimized = False
 
     try:
         setup_backups(backup_configs_dir, start_schedulers)

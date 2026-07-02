@@ -15,8 +15,7 @@ dependencies = [
     "pystray>=0.19.5",
     "Pillow>=12.2.0",
     "pywebview>=6.2.1",
-    "plyer>=2.1.0; sys_platform != 'darwin'",
-    "plyer[macosx]>=2.1.0; sys_platform == 'darwin'",
+    "notify-py>=0.3.43",
 ]
 
 [project.optional-dependencies]

@@ -1,6 +1,6 @@
 import sys
 import webview
-from plyer import notification
+from notifypy import Notify
 from pathlib import Path
 from urllib.parse import quote
 from flask import Flask, render_template, abort, jsonify, request
@@ -19,14 +19,18 @@ PYTHON_EXECUTABLE: str = sys.executable
 DRIVE_BROWSER: DriveHandler = DriveHandler()
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 ICON_PATH = str(STATIC_DIR / "img" / "logo.png")
+NOTIFIER = Notify()
+NOTIFIER.icon = ICON_PATH
 
 
 DEFAULT_BACKUP_CONFIGS_DIR = Path.home() / "AutoBackup" / "backup_configs"
 BACKUP_CONFIGS_DIR: Path = DEFAULT_BACKUP_CONFIGS_DIR
 BACKUPS: dict[str, Backup]  = {}
 
-def set_backup_configs_dir(dir_path: str | Path = DEFAULT_BACKUP_CONFIGS_DIR) -> Path:
+def set_backup_configs_dir(dir_path: str | Path = None) -> Path:
     global BACKUP_CONFIGS_DIR
+    if dir_path is None:
+        dir_path = DEFAULT_BACKUP_CONFIGS_DIR
     BACKUP_CONFIGS_DIR = Path(dir_path).resolve()
     BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
     return BACKUP_CONFIGS_DIR
@@ -377,7 +381,9 @@ def api_notify():
     message = data.get("message", "")
     logger.info(f"Sending notification: {title} — {message}")
     try:
-        notification.notify(title=title, message=message, app_name="AutoBackup", app_icon=ICON_PATH, timeout=5)
+        NOTIFIER.title = title
+        NOTIFIER.message = message
+        NOTIFIER.send(block=False)
         return jsonify({"status": "notification sent"})
     except Exception as e:
         logger.error(f"Failed to send notification: {e}")
