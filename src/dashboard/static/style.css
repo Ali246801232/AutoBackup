@@ -18,6 +18,8 @@
   --color-success-light: #f0fdf4;
   --color-warning: #d97706;
   --color-warning-light: #fffbeb;
+  --color-info: #2563eb;
+  --color-info-light: #eff6ff;
   --color-error: #d32f2f;
   --color-error-light: #fef2f2;
 
@@ -51,6 +53,8 @@
 
   --color-success-light: #15301e;
   --color-warning-light: #2d2410;
+  --color-info: #60a5fa;
+  --color-info-light: #17253e;
   --color-error-light: #2d1515;
   color-scheme: dark;
 
@@ -558,7 +562,7 @@ a.btn.disabled {
   flex-shrink: 0;
 }
 
-.toast-info svg { color: var(--color-primary); }
+.toast-info svg { color: var(--color-info); }
 .toast-success svg { color: var(--color-success); }
 .toast-error svg { color: var(--color-danger); }
 
