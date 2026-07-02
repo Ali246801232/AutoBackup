@@ -36,6 +36,7 @@ class Backup:
         schedule: dict|None = None,
         drive_upload: bool = False,
         drive_folder_id = None,
+        drive_folder_name: str|None = None,
         last_scheduled_attempt: datetime|None = None,
     ):
         # Backup configuration
@@ -46,6 +47,7 @@ class Backup:
         self.schedule: dict|None = schedule
         self.drive_upload: bool = drive_upload
         self.drive_folder_id = drive_folder_id
+        self.drive_folder_name: str|None = drive_folder_name
 
         # Drive handler
         self.drive_handler: DriveHandler = None
@@ -89,6 +91,7 @@ class Backup:
             "schedule": self.schedule,
             "drive_upload": self.drive_upload,
             "drive_folder_id": self.drive_folder_id,
+            "drive_folder_name": self.drive_folder_name,
             "last_scheduled_attempt": self.last_scheduled_attempt.isoformat() if self.last_scheduled_attempt else None,
         }
 
@@ -102,6 +105,7 @@ class Backup:
             schedule = data.get("schedule"),
             drive_upload = data.get("drive_upload", False),
             drive_folder_id = data.get("drive_folder_id"),
+            drive_folder_name = data.get("drive_folder_name"),
             last_scheduled_attempt = datetime.fromisoformat(data["last_scheduled_attempt"]) if data.get("last_scheduled_attempt") else None
         )
 
@@ -135,6 +139,7 @@ class Backup:
             schedule = data.get("schedule")
             drive_upload = data.get("drive_upload", False)
             drive_folder_id = data.get("drive_folder_id")
+            drive_folder_name = data.get("drive_folder_name")
             last_scheduled_attempt = datetime.fromisoformat(data["last_scheduled_attempt"]) if data.get("last_scheduled_attempt") else None
         except KeyError as e:
             raise ValueError(f"Config missing required key: {e}") from e
@@ -146,6 +151,7 @@ class Backup:
         self.schedule = schedule
         self.drive_upload = drive_upload
         self.drive_folder_id = drive_folder_id
+        self.drive_folder_name = drive_folder_name
         self.last_scheduled_attempt = last_scheduled_attempt
 
 

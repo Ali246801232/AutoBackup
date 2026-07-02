@@ -105,7 +105,7 @@
                     '<div class="modal-header"><h2>Google Drive</h2><button class="btn-icon" onclick="document.getElementById(\'modal-container\').hidden=true"><i data-lucide="x" style="width:18px;height:18px"></i></button></div>' +
                     '<div class="modal-body">' +
                         '<p>You need to authenticate with Google Drive to browse folders.</p>' +
-                        '<button class="btn btn-primary drive-auth-btn" id="drive-auth-btn"><i data-lucide="hard-drive" style="width:16px;height:16px"></i> Authenticate with Google Drive</button>' +
+                        '<button class="btn btn-primary drive-auth-btn" id="drive-auth-btn"><i data-lucide="key" style="width:16px;height:16px"></i> Authenticate with Google Drive</button>' +
                     '</div>' +
                 '</div>';
             container.hidden = false;
@@ -124,7 +124,7 @@
                     })
                     .catch(function(e) {
                         btn.disabled = false;
-                        btn.innerHTML = '<i data-lucide="hard-drive" style="width:16px;height:16px"></i> Authenticate with Google Drive';
+                        btn.innerHTML = '<i data-lucide="key" style="width:16px;height:16px"></i> Authenticate with Google Drive';
                         if (typeof lucide !== "undefined") lucide.createIcons();
                         showErrorModal("Authentication failed: " + e.message);
                     });
@@ -229,7 +229,7 @@
     function selectDriveFolder(id, name) {
         driveFolderId.value = id;
         driveFolderName.value = name;
-        driveFolderLabel.textContent = name;
+        driveFolderLabel.innerHTML = escapeHtml(name) + ' <span class="drive-folder-id">(ID: ' + escapeHtml(id) + ')</span>';
         driveFolderLabel.className = "drive-folder-name";
         document.getElementById("modal-container").hidden = true;
     }
@@ -333,6 +333,7 @@
             schedule: schedule,
             drive_upload: driveUpload.checked,
             drive_folder_id: driveUpload.checked ? driveFolderId.value : null,
+            drive_folder_name: driveUpload.checked ? driveFolderName.value : null,
             last_scheduled_attempt: null
         };
 
@@ -358,7 +359,7 @@
         })
         .catch(function(e) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="save" style="width:16px;height:16px"></i> ' + (isEdit ? "Save Changes" : "Create Backup");
+            submitBtn.innerHTML = '<i data-lucide="save" style="width:16px;height:16px"></i> ' + (isEdit ? "Save Changes" : "Create Config");
             if (typeof lucide !== "undefined") lucide.createIcons();
 
             var errorEl = document.getElementById("error-submit");
@@ -424,13 +425,9 @@
         if (editData.drive_folder_id) {
             driveFolderId.value = editData.drive_folder_id;
             driveFolderName.value = editData.drive_folder_name || "";
-            if (editData.drive_folder_name) {
-                driveFolderLabel.textContent = editData.drive_folder_name;
-                driveFolderLabel.className = "drive-folder-name";
-            } else if (editData.drive_folder_id) {
-                driveFolderLabel.textContent = "Folder ID: " + editData.drive_folder_id;
-                driveFolderLabel.className = "drive-folder-name";
-            }
+            var name = editData.drive_folder_name || "Unknown";
+            driveFolderLabel.innerHTML = escapeHtml(name) + ' <span class="drive-folder-id">(ID: ' + escapeHtml(editData.drive_folder_id) + ')</span>';
+            driveFolderLabel.className = "drive-folder-name";
         }
     }
 
