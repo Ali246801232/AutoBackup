@@ -5,9 +5,8 @@ from pydrive2.drive import GoogleDrive
 from pydrive2.files import ApiRequestError
 
 from .logger import logger
+from .exceptions import CancelledError
 
-class CancelledError(Exception):
-    pass
 
 class DriveHandler:
     def __init__(self):
@@ -254,7 +253,7 @@ class DriveHandler:
         if self._folder_upload_thread:
             self._folder_upload_thread.join()
 
-        if self._folder_upload_error and not isinstance(self._folder_upload_error, CancelledError):
+        if self._folder_upload_error:
             raise self._folder_upload_error
 
         return self._folder_upload_root_id

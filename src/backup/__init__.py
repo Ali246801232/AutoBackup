@@ -2,5 +2,6 @@
 
 from .backup import Backup
 from .drive import DriveHandler
+from .exceptions import CancelledError
 
-__all__ = ["Backup", "DriveHandler"]
+__all__ = ["CancelledError", "Backup", "DriveHandler"]

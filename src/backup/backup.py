@@ -10,8 +10,7 @@ from dateutil.relativedelta import relativedelta
 from .logger import logger
 from .drive import DriveHandler
 
-class CancelledError(Exception):
-    pass
+from .exceptions import CancelledError
 
 _SCHEDULE_UNITS = {
     "seconds": lambda count: timedelta(seconds=count),
@@ -411,6 +410,8 @@ class Backup:
                 self.drive_handler.start_folder_upload(backup_folder, self.drive_folder_id)
                 drive_backup_folder_id = self.drive_handler.wait_for_folder_upload()
                 logger.info(f"Uploaded backup to Google Drive: https://drive.google.com/drive/folders/{drive_backup_folder_id}")
+            except CancelledError:
+                raise
             except Exception as e:
                 raise RuntimeError(f"Failed to upload backup to Google Drive: {e}") from e
         else:
@@ -485,7 +486,7 @@ class Backup:
         if self._backup_thread and self._backup_thread.is_alive():
             self._backup_thread.join()
 
-        if self._backup_error and not isinstance(self._backup_error, CancelledError):
+        if self._backup_error:
             raise self._backup_error
 
         if self.drive_handler:

@@ -242,8 +242,8 @@
             var cs = cur.status || {};
 
             if (!os.backup_error && cs.backup_error) {
-                var msg = cs.backup_error_message || 'failed';
-                showToast('Backup "' + name + '" ' + msg, 'error');
+                var msg = cs.backup_error_message || 'no error message';
+                showToast('Backup "' + name + '" failed: ' + msg, 'error');
             }
             if (!os.backup_running && cs.backup_running) {
                 showToast('Backup "' + name + '" started', 'info');
