@@ -43,7 +43,11 @@ def setup_backups(tmp_path):
 
 
 @pytest.fixture
-def valid_backup_dict(tmp_source, tmp_destination):
+def valid_backup_dict(tmp_path):
+    tmp_source = tmp_path / "fixture_source"
+    tmp_source.mkdir()
+    tmp_destination = tmp_path / "fixture_destination"
+    tmp_destination.mkdir()
     return {
         "config_name": "test_config",
         "sources": [str(tmp_source)],
@@ -497,14 +501,13 @@ class TestFileDialog:
 class TestNotifyAPI:
     def test_notify_success(self, client):
         import dashboard.app
-        with patch("dashboard.app.Notify") as mock_notify:
+        with patch("dashboard.app.NOTIFIER") as mock_notifier:
             resp = client.post("/api/notify", json={"title": "Test", "message": "Hello"})
             assert resp.status_code == 200
             assert resp.get_json()["status"] == "notification sent"
-            instance = mock_notify.return_value
-            assert instance.title == "Test"
-            assert instance.message == "Hello"
-            instance.send.assert_called_once_with(block=False)
+            assert mock_notifier.title == "Test"
+            assert mock_notifier.message == "Hello"
+            mock_notifier.send.assert_called_once_with(block=False)
 
     def test_notify_default_title(self, client):
         import dashboard.app
@@ -515,9 +518,9 @@ class TestNotifyAPI:
 
     def test_notify_exception(self, client):
         import dashboard.app
-        mock_notify = MagicMock()
-        mock_notify.send.side_effect = Exception("notify fail")
-        with patch("dashboard.app.Notify", return_value=mock_notify):
+        mock_notifier = MagicMock()
+        mock_notifier.send.side_effect = Exception("notify fail")
+        with patch("dashboard.app.NOTIFIER", mock_notifier):
             resp = client.post("/api/notify", json={"title": "T", "message": "M"})
             assert resp.status_code == 500
             assert "notify fail" in resp.get_json()["error"]
