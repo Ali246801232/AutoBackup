@@ -238,11 +238,9 @@ def api_edit_backup(config_name):
 
 @app.route("/api/startup/status")
 def api_startup_status():
-    configs_dir = BACKUP_CONFIGS_DIR
-    registered = is_in_startup(configs_dir) if configs_dir else False
     return jsonify({
-        "registered": registered,
-        "configs_dir": str(configs_dir) if configs_dir else "",
+        "registered": is_in_startup(BACKUP_CONFIGS_DIR),
+        "configs_dir": str(BACKUP_CONFIGS_DIR),
     })
 
 @app.route("/api/startup/add", methods=["POST"])

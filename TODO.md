@@ -1,20 +1,15 @@
 ## Startup functionality
 
-So that the scheduling actually has a point.
+- Upon startup, we run a script with a number of `"{app.PYTHON_EXECUTABLE}" -m AutoBackup --configs-dir "{app.BACKUP_CONFIGS_DIR}" --start-minimized --start-schedulers` commands to start the app and its schedulers.
+- To add a backup configs dir to start, you run the app manually with that configs dir (`AutoBackup --configs-dir "whatever/configs/dir"`) and then add it to startup from there.
+- So if the user wants to have multiple configs dirs, to add them to startup, launch the app multiple times with each configs dirs, and then add to startup from each.
 
 `src/startup/`:
-- Add script to run `"{app.PYTHON_EXECUTABLE}" -m AutoBackup --configs-dir "{app.BACKUP_CONFIGS_DIR}" --start-minimized --start-schedulers` at device startup.
-- Maybe add a delay of like 5 minutes before starting idk.
-- Probably one script that we add/remove the commands for each config dir to.
+- Adds the right type script to the right place depending on the platform; planning to support Windows, Linux, macOS.
+- Allows registering and unregistering of a configs dir to startup by modifying the script, and checking the script for if a configs dir already registered.
 
 `src/dashboard/`:
-- Add a little modal and way to access model that has a add/remove from startup button and shows whether currently added to startup; connects with the API cals added to `app.py`.
-- As `app.py` implements, we just use the configs path that the app itself was launched with. If the user wants to have multiple config paths for whatever reason, they can I guess; just launch the app multiple times with different config dirs, and then add to startup from each.
-- Add a little hint in monospace in the sticky header showing the current backup configs dir.
-
-## Tests
-
-Go through the following to ensure tests aren't bumass garbage:
-- `test_dashboard_app.py`
-- `test_drive.py`
-- `test_runner.py`
+- Replace the theme button with a hamburger button that opens a dropdown with the theme button and a button to open the startup modal.
+- Startup modal shows whether the configs dir is added to startup and has a button that switches between "Add to Startup" and "Remove from Startup" depending on status.
+- Status and buttons use the API cals in `app.py`: `/api/startup/status`, `/api/startup/add`, `api/startup/remove`.
+- Add a little hint to the left of the hamburger button in monospace in the sticky header showing the current backup configs dir.
