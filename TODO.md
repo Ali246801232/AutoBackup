@@ -11,3 +11,10 @@ So that the scheduling actually has a point.
 - Add a little modal and way to access model that has a add/remove from startup button and shows whether currently added to startup; connects with the API cals added to `app.py`.
 - As `app.py` implements, we just use the configs path that the app itself was launched with. If the user wants to have multiple config paths for whatever reason, they can I guess; just launch the app multiple times with different config dirs, and then add to startup from each.
 - Add a little hint in monospace in the sticky header showing the current backup configs dir.
+
+## Tests
+
+Go through the following to ensure tests aren't bumass garbage:
+- `test_dashboard_app.py`
+- `test_drive.py`
+- `test_runner.py`

@@ -2,7 +2,7 @@
 
 
 class TestBackup:
-    def test_import_backup_init(self):
+    def test_init(self):
         import backup
         assert backup is not None
 
@@ -12,20 +12,20 @@ class TestBackup:
 
 
 class TestDashboard:
-    def test_import_dashboard_init(self):
+    def test_init(self):
         import dashboard
         assert dashboard is not None
 
-    def test_import_dashboard_main(self):
-        from dashboard import run_app
-        assert run_app is not None
+    def test_all_exports(self):
+        from dashboard import run_app, set_backup_configs_dir
+        assert run_app is not None and set_backup_configs_dir is not None
 
 
 class TestAutoBackup:
-    def test_import_autobackup_init(self):
+    def test_init(self):
         import AutoBackup
         assert AutoBackup is not None
 
-    def test_import_autobackup_main(self):
+    def test_main(self):
         import AutoBackup.__main__
         assert AutoBackup.__main__ is not None
