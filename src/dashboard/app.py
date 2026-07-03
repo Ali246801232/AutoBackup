@@ -280,12 +280,21 @@ def api_file_dialog():
 
     data = request.get_json() or {}
     dialog_type = data.get("type", "folder")
+    initial_path = data.get("initial_path")
+
+    kwargs = {}
+    if initial_path:
+        p = Path(initial_path)
+        if p.is_file():
+            kwargs = {"directory": str(p.parent)}
+        elif p.is_dir():
+            kwargs = {"directory": initial_path}
 
     try:
         if dialog_type == "file":
-            result = webview.windows[0].create_file_dialog(webview.FileDialog.OPEN)
+            result = webview.windows[0].create_file_dialog(webview.FileDialog.OPEN, **kwargs)
         else:
-            result = webview.windows[0].create_file_dialog(webview.FileDialog.FOLDER)
+            result = webview.windows[0].create_file_dialog(webview.FileDialog.FOLDER, **kwargs)
     except Exception as e:
         logger.error(f"Error while using file dialog: {e}")
         return jsonify({"error": f"Error while using file dialog: {e}"}), 500

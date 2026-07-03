@@ -33,8 +33,25 @@
         input.type = "text";
         input.className = "form-input";
         input.placeholder = "Path...";
-        input.readOnly = true;
         if (value) input.value = value;
+
+        var fileBtn = document.createElement("button");
+        fileBtn.type = "button";
+        fileBtn.className = "btn-icon";
+        fileBtn.title = "Browse file";
+        fileBtn.innerHTML = '<i data-lucide="file" style="width:16px;height:16px"></i>';
+        fileBtn.addEventListener("click", function() {
+            openFileDialog(input, "file");
+        });
+
+        var folderBtn = document.createElement("button");
+        folderBtn.type = "button";
+        folderBtn.className = "btn-icon";
+        folderBtn.title = "Browse folder";
+        folderBtn.innerHTML = '<i data-lucide="folder-open" style="width:16px;height:16px"></i>';
+        folderBtn.addEventListener("click", function() {
+            openFileDialog(input, "folder");
+        });
 
         var removeBtn = document.createElement("button");
         removeBtn.type = "button";
@@ -45,6 +62,8 @@
         });
 
         row.appendChild(input);
+        row.appendChild(fileBtn);
+        row.appendChild(folderBtn);
         row.appendChild(removeBtn);
         return row;
     }
@@ -79,10 +98,12 @@
     }
 
     function openFileDialog(input, type) {
+        var body = { type: type || "folder" };
+        if (input.value) body.initial_path = input.value;
         fetch("/api/file_dialog", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: type || "folder" })
+            body: JSON.stringify(body)
         })
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -363,10 +384,9 @@
             if (typeof lucide !== "undefined") lucide.createIcons();
 
             var errorEl = document.getElementById("error-submit");
-            errorEl.textContent = e.message;
+            errorEl.innerHTML = e.message.replace(/\n/g, "<br>");
             errorEl.classList.add("visible");
 
-            window.scrollTo({ top: 0, behavior: "smooth" });
         });
     }
 
