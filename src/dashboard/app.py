@@ -178,6 +178,8 @@ def api_delete_backup(config_name):
 def api_new_backup():
 
     data = request.get_json() or {}
+    if not data:
+        return jsonify({"error": "Request body is empty"}), 400
     config_name = data.get("config_name")
 
     try:

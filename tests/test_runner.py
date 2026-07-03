@@ -208,7 +208,7 @@ class TestWebviewFunctions:
         runner.QUITTING = False
         runner.WINDOW_VISIBLE = True
         runner.FIRST_HIDE = True
-        with patch("dashboard.runner.Notify") as mock_notify:
+        with patch("dashboard.runner.NOTIFIER") as mock_notify:
             result = on_window_closing()
         assert result is False
         window.hide.assert_called_once()

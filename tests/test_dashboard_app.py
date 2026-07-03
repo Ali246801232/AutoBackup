@@ -494,7 +494,7 @@ class TestNotifyAPI:
         with patch("dashboard.app.NOTIFIER") as mock_notifier:
             resp = client.post("/api/notify", json={"title": "Test", "message": "Hello"})
             assert resp.status_code == 200
-            assert resp.get_json()["status"] == "notification sent"
+            assert resp.get_json()["status"] == "Sent notification"
             assert mock_notifier.title == "Test"
             assert mock_notifier.message == "Hello"
             mock_notifier.send.assert_called_once_with(block=False)
@@ -504,7 +504,7 @@ class TestNotifyAPI:
         with patch("dashboard.app.Notify"):
             resp = client.post("/api/notify", json={"message": "Hello"})
             assert resp.status_code == 200
-            assert resp.get_json()["status"] == "notification sent"
+            assert resp.get_json()["status"] == "Sent notification"
 
     def test_notify_exception(self, client):
         import dashboard.app
