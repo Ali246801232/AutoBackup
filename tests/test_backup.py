@@ -251,7 +251,7 @@ class TestNextBackup:
 
 class TestBackupProgress:
     def test_not_running(self, backup_instance):
-        assert backup_instance.backup_progress is None
+        assert backup_instance.backup_progress == {}
 
     def test_running_no_progress(self, backup_instance):
         backup_instance._manual_backup_ongoing = True
@@ -275,7 +275,7 @@ class TestStatus:
         assert status["scheduler_running"] is False
         assert status["scheduler_error"] is False
         assert status["scheduler_error_message"] is None
-        assert status["backup_progress"] is None
+        assert status["backup_progress"] == {}
 
     def test_after_set_events(self, backup_instance):
         backup_instance._backup_error = RuntimeError("test error")

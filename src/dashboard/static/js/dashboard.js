@@ -2,8 +2,12 @@
     var lastState = {};
     var polling = false;
 
-    var grid = document.getElementById("backups-grid");
+    var cardsContainer = document.getElementById("backup-cards-container");
+
     var searchInput = document.getElementById("search-input");
+    searchInput.addEventListener("input", function() {
+        renderCards(lastState, searchInput.value);
+    });
 
     function showToast(message, type) {
         type = type || "info";
@@ -27,7 +31,7 @@
             '<button class="toast-close" onclick="this.parentElement.classList.add(\'toast-out\');setTimeout(function(){this.parentElement.remove()}.bind(this),300)"><i data-lucide="x" style="width:16px;height:16px"></i></button>';
 
         container.appendChild(toast);
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        lucide.createIcons();
 
         setTimeout(function() {
             toast.classList.add("toast-out");
@@ -41,19 +45,7 @@
         });
     }
 
-    function showErrorModal(message) {
-        var container = document.getElementById("modal-container");
-        container.innerHTML =
-            '<div class="modal-content">' +
-                '<div class="modal-header"><h2>Error</h2><button class="btn-icon" onclick="document.getElementById(\'modal-container\').hidden=true"><i data-lucide="x" style="width:18px;height:18px"></i></button></div>' +
-                '<div class="modal-body"><p>' + escapeHtml(message) + '</p></div>' +
-                '<div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById(\'modal-container\').hidden=true">OK</button></div>' +
-            '</div>';
-        container.hidden = false;
-        if (typeof lucide !== "undefined") lucide.createIcons();
-    }
-
-    function showDeleteModal(name) {
+    function showDeleteModal(name, onConfirm) {
         var container = document.getElementById("modal-container");
         container.innerHTML =
             '<div class="modal-content">' +
@@ -65,30 +57,11 @@
                 '</div>' +
             '</div>';
         container.hidden = false;
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        lucide.createIcons();
 
         document.getElementById("confirm-delete-btn").addEventListener("click", function() {
-            document.getElementById("modal-container").hidden = true;
-            deleteBackup(name);
-        });
-    }
-
-    function escapeHtml(str) {
-        var div = document.createElement("div");
-        div.appendChild(document.createTextNode(str));
-        return div.innerHTML;
-    }
-
-    function apiCall(url, method, body) {
-        return fetch(url, {
-            method: method || "POST",
-            headers: body ? {"Content-Type": "application/json"} : {},
-            body: body ? JSON.stringify(body) : undefined
-        }).then(function(r) {
-            if (!r.ok) return r.json().then(function(d) {
-                throw new Error(d.error || "Request failed");
-            });
-            return r.json();
+            container.hidden = true;
+            onConfirm();
         });
     }
 
@@ -96,7 +69,7 @@
         return encodeURIComponent(name);
     }
 
-    function startBackup(btn, name) {
+    window._startBackup = function(btn, name) {
         btn.disabled = true;
         apiCall("/api/backups/" + configName(name) + "/start_backup").catch(function(e) {
             btn.disabled = false;
@@ -104,7 +77,7 @@
         });
     }
 
-    function cancelBackup(btn, name) {
+    window._cancelBackup = function(btn, name) {
         btn.disabled = true;
         apiCall("/api/backups/" + configName(name) + "/cancel_backup").catch(function(e) {
             btn.disabled = false;
@@ -112,7 +85,7 @@
         });
     }
 
-    function startScheduler(btn, name) {
+    window._startScheduler = function(btn, name) {
         btn.disabled = true;
         apiCall("/api/backups/" + configName(name) + "/start_scheduler").catch(function(e) {
             btn.disabled = false;
@@ -120,7 +93,7 @@
         });
     }
 
-    function stopScheduler(btn, name) {
+    window._stopScheduler = function(btn, name) {
         btn.disabled = true;
         apiCall("/api/backups/" + configName(name) + "/stop_scheduler").catch(function(e) {
             btn.disabled = false;
@@ -128,82 +101,87 @@
         });
     }
 
-    function deleteBackup(name) {
-        var card = document.querySelector('.backup-card[data-name="' + name.replace(/"/g, '&quot;') + '"]');
-        var cardBtns = card.querySelectorAll("button");
-        var editLink = card.querySelector("a.btn");
-        for (var i = 0; i < cardBtns.length; i++) { cardBtns[i].disabled = true; }
-        if (editLink) editLink.classList.add("disabled");
-        apiCall("/api/backups/" + configName(name) + "/delete").catch(function(e) {
-            for (var i = 0; i < cardBtns.length; i++) { cardBtns[i].disabled = false; }
-            if (editLink) editLink.classList.remove("disabled");
-            showErrorModal("Failed to delete backup: " + e.message);
+    window._deleteBackup = function(btn, name) {
+        showDeleteModal(name, function() {
+            var card = btn.closest('.backup-card');
+            var cardBtns = card.querySelectorAll("button");
+            for (var i = 0; i < cardBtns.length; i++) { cardBtns[i].disabled = true; }
+            apiCall("/api/backups/" + configName(name) + "/delete").catch(function(e) {
+                for (var i = 0; i < cardBtns.length; i++) { cardBtns[i].disabled = false; }
+                showErrorModal("Failed to delete backup: " + e.message);
+            });
         });
     }
 
     function renderCard(name, backup) {
         var status = backup.status || {};
-        var running = status.backup_running;
-        var error = status.backup_error;
-        var errorMessage = status.backup_error_message;
+        var backupRunning = status.backup_running;
+        var backupError = status.backup_error;
+        var backupErrorMessage = status.backup_error_message;
         var schedRunning = status.scheduler_running;
         var schedError = status.scheduler_error;
-        var progress = status.backup_progress || {};
+        var schedErrorMessage = status.scheduler_error_message;
+        var progress = status.backup_progress;
 
         var schedBadge, schedClass;
         if (schedRunning) { schedBadge = "Running"; schedClass = "badge-running"; }
-        else if (schedError) { schedBadge = "Error"; schedClass = "badge-error"; }
+        else if (schedError) { schedBadge = "Error"; schedClass = "badge-error"; } 
         else { schedBadge = "Stopped"; schedClass = "badge-stopped"; }
 
+        var schedBadgeHtml = schedRunning
+            ? '<span class="badge badge-running"><i data-lucide="clock" style="width:12px;height:12px"></i> Scheduler ' + schedBadge + '</span>'
+            : '';
+        var errorBadgeHtml = backupError
+            ? '<span class="badge badge-error"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Error</span>'
+            : '';
+
         var barClass = "greyed";
-        if (running) {
-            barClass = progress.percent != null ? "determinate" : "idle";
-        }
+        if (backupRunning) { barClass = progress.percent != null ? "determinate" : "idle"; }
         var barWidth = progress.percent != null ? (progress.percent * 100) + "%" : "100%";
+        var barHtml = '<div class="progress-bar-track"><div class="progress-bar-fill ' + barClass + '" style="width:' + barWidth + '"></div></div>';
 
         var progressMsg = "";
-        if (running && progress.message) {
-            progressMsg = '<div class="progress-message">' + escapeHtml(progress.message) + '</div>';
-        }
+        if (backupRunning && progress.message) { progressMsg = '<div class="progress-message">' + escapeHtml(progress.message) + '</div>'; }
 
-        var backupBtn, schedBtn;
+        var backupErrorHtml = (backupError && backupErrorMessage)
+            ? '<div class="error-message">' + escapeHtml(backupErrorMessage) + '</div>'
+            : '';
+        var schedErrorHtml = (schedError && schedErrorMessage)
+            ? '<div class="error-message">' + escapeHtml(schedErrorMessage) + '</div>'
+            : '';
 
-        if (running) {
-            backupBtn = '<button class="btn btn-secondary" onclick="window._cancelBackup(this,\'' + escapeHtml(name) + '\')"><i data-lucide="square" style="width:16px;height:16px"></i> Cancel</button>';
-        } else {
-            backupBtn = '<button class="btn btn-primary" onclick="window._startBackup(this,\'' + escapeHtml(name) + '\')"><i data-lucide="play" style="width:16px;height:16px"></i> Backup</button>';
-        }
+        var backupBtn;
+        if (backupRunning) { backupBtn = '<button class="btn btn-secondary" onclick="window._cancelBackup(this,\'' + escapeHtml(name) + '\')"><i data-lucide="square" style="width:16px;height:16px"></i> Cancel</button>'; }
+        else { backupBtn = '<button class="btn btn-primary" onclick="window._startBackup(this,\'' + escapeHtml(name) + '\')"><i data-lucide="play" style="width:16px;height:16px"></i> Backup</button>'; }
 
+        var schedBtn = ''
         if (backup.schedule) {
-            if (schedRunning) {
-                schedBtn = '<button class="btn btn-secondary" onclick="window._stopScheduler(this,\'' + escapeHtml(name) + '\')"><i data-lucide="pause" style="width:16px;height:16px"></i> Stop Scheduler</button>';
-            } else {
-                schedBtn = '<button class="btn btn-secondary" onclick="window._startScheduler(this,\'' + escapeHtml(name) + '\')"><i data-lucide="play" style="width:16px;height:16px"></i> Start Scheduler</button>';
-            }
-        } else {
-            schedBtn = '';
+            if (schedRunning) { schedBtn = '<button class="btn btn-secondary" onclick="window._stopScheduler(this,\'' + escapeHtml(name) + '\')"><i data-lucide="pause" style="width:16px;height:16px"></i> Stop Scheduler</button>'; }
+            else { schedBtn = '<button class="btn btn-secondary" onclick="window._startScheduler(this,\'' + escapeHtml(name) + '\')"><i data-lucide="play" style="width:16px;height:16px"></i> Start Scheduler</button>'; }
         }
+
+        var editBtn = '<button class="btn btn-ghost" onclick="window.location.href=\'/edit_backup/' + configName(name) + '\'"><i data-lucide="pen" style="width:16px;height:16px"></i> Edit</button>';
+        var deleteBtn = '<button class="btn btn-ghost" onclick="window._deleteBackup(this,\'' + escapeHtml(name) + '\')"><i data-lucide="trash-2" style="width:16px;height:16px"></i> Delete</button>';
 
         return '<div class="backup-card" data-name="' + escapeHtml(name) + '">' +
             '<div class="card-header">' +
                 '<h3 class="card-title">' + escapeHtml(name) + '</h3>' +
                 '<div class="card-badges">' +
-                    (schedRunning ? '<span class="badge badge-running"><i data-lucide="clock" style="width:12px;height:12px"></i> Scheduler ' + schedBadge + '</span>' : '') +
-                    (error ? '<span class="badge badge-error"><i data-lucide="alert-circle" style="width:12px;height:12px"></i> Error</span>' : '') +
+                    schedBadgeHtml +
+                    errorBadgeHtml +
                 '</div>' +
             '</div>' +
             '<div class="progress-section">' +
-                '<div class="progress-bar-track">' +
-                    '<div class="progress-bar-fill ' + barClass + '" style="width:' + barWidth + '"></div>' +
-                '</div>' +
+                barHtml +
                 progressMsg +
-                (error && errorMessage ? '<div class="error-message">' + escapeHtml(errorMessage) + '</div>' : '') +
+                backupErrorHtml +
+                schedErrorHtml +
             '</div>' +
             '<div class="card-actions">' +
                 backupBtn +
                 schedBtn +
-                '<a href="/edit_backup/' + configName(name) + '" class="btn btn-ghost"><i data-lucide="pen" style="width:16px;height:16px"></i> Edit</a>' +
-                '<button class="btn btn-ghost" onclick="window._showDelete(\'' + escapeHtml(name) + '\')"><i data-lucide="trash-2" style="width:16px;height:16px"></i> Delete</button>' +
+                editBtn +
+                deleteBtn +
             '</div>' +
         '</div>';
     }
@@ -220,8 +198,8 @@
             var msg = (filter && Object.keys(backups).length > 0)
                 ? '<div class="empty-state"><p>No backups match "' + escapeHtml(filter) + '"</p></div>'
                 : '<div class="empty-state"><i data-lucide="archive" style="width:48px;height:48px;opacity:0.4;display:block;margin:0 auto 16px"></i><h2>No backups yet</h2><p>Create your first backup configuration to get started.</p></div>';
-            grid.innerHTML = msg;
-            if (typeof lucide !== "undefined") lucide.createIcons();
+            cardsContainer.innerHTML = msg;
+            lucide.createIcons();
             return;
         }
 
@@ -229,9 +207,9 @@
         for (var i = 0; i < names.length; i++) {
             html += renderCard(names[i], backups[names[i]]);
         }
-        grid.innerHTML = html;
+        cardsContainer.innerHTML = html;
 
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        lucide.createIcons();
     }
 
     function detectChanges(newData, oldData) {
@@ -279,31 +257,7 @@
         });
     }
 
-    // Expose functions to global scope for onclick handlers
-    window._startBackup = function(btn, name) {
-        startBackup(btn, name);
-    };
-    window._cancelBackup = function(btn, name) {
-        cancelBackup(btn, name);
-    };
-    window._startScheduler = function(btn, name) {
-        startScheduler(btn, name);
-    };
-    window._stopScheduler = function(btn, name) {
-        stopScheduler(btn, name);
-    };
-    window._showDelete = function(name) {
-        showDeleteModal(name);
-    };
-
-    // Initial fetch
     fetchBackups();
-
-    // Poll every 3 seconds
     setInterval(fetchBackups, 3000);
 
-    // Search filter
-    searchInput.addEventListener("input", function() {
-        renderCards(lastState, searchInput.value);
-    });
 })();

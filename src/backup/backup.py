@@ -201,13 +201,12 @@ class Backup:
     @property
     def backup_progress(self) -> dict|None:
         """Return the progress of the ongoing backup as a dict = {"message": str, "percent": float}"""
-        if not self.backup_running:
-            return None
         progress = {}
-        if self._progress_message is not None:
-            progress["message"] = self._progress_message
-        if self._progress_percent is not None:
-            progress["percent"] = self._progress_percent
+        if self.backup_running:
+            if self._progress_message is not None:
+                progress["message"] = self._progress_message
+            if self._progress_percent is not None:
+                progress["percent"] = self._progress_percent
         return progress
 
     @property

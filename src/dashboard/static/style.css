@@ -252,7 +252,7 @@ input, select, button, textarea {
   color: var(--color-text-muted);
 }
 
-.backups-grid {
+.backup-cards-container {
   display: flex;
   flex-direction: column;
   gap: 16px;

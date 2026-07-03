@@ -130,7 +130,7 @@ class TestListBackups:
         assert data["test_config"]["status"]["backup_error"] is False
         assert data["test_config"]["status"]["scheduler_running"] is False
         assert data["test_config"]["status"]["scheduler_error"] is False
-        assert data["test_config"]["status"]["backup_progress"] is None
+        assert data["test_config"]["status"]["backup_progress"] == {}
 
 
 class TestUpdateBackup:

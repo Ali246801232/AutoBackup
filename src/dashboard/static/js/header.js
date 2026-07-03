@@ -1,39 +1,4 @@
-function escapeHtml(str) {
-    var div = document.createElement("div");
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
-}
-
-function apiCall(url, method, body) {
-    return fetch(url, {
-        method: method || "POST",
-        headers: body ? {"Content-Type": "application/json"} : {},
-        body: body ? JSON.stringify(body) : undefined
-    }).then(function(r) {
-        if (!r.ok) return r.json().then(function(d) {
-            throw new Error(d.error || "Request failed");
-        });
-        return r.json();
-    });
-}
-
-function showErrorModal(message) {
-    var container = document.getElementById("modal-container");
-    container.innerHTML =
-        '<div class="modal-content">' +
-            '<div class="modal-header"><h2>Error</h2><button class="btn-icon" onclick="document.getElementById(\'modal-container\').hidden=true"><i data-lucide="x" style="width:18px;height:18px"></i></button></div>' +
-            '<div class="modal-body"><p>' + escapeHtml(message) + '</p></div>' +
-            '<div class="modal-footer"><button class="btn btn-secondary" onclick="document.getElementById(\'modal-container\').hidden=true">OK</button></div>' +
-        '</div>';
-    container.hidden = false;
-    if (typeof lucide !== "undefined") lucide.createIcons();
-}
-
-
 (function() {
-
-    // ── Hamburger dropdown ──
-
     var hamburgerBtn = document.getElementById("hamburger-btn");
     var dropdownMenu = document.getElementById("dropdown-menu");
     var hamburgerIcon = hamburgerBtn.querySelector("i[data-lucide]");
@@ -44,7 +9,7 @@ function showErrorModal(message) {
         dropdownMenu.hidden = isOpen;
         if (hamburgerIcon) {
             hamburgerIcon.setAttribute("data-lucide", isOpen ? "menu" : "x");
-            if (typeof lucide !== "undefined") lucide.createIcons();
+            lucide.createIcons();
         }
     });
 
@@ -53,7 +18,7 @@ function showErrorModal(message) {
             dropdownMenu.hidden = true;
             if (hamburgerIcon) {
                 hamburgerIcon.setAttribute("data-lucide", "menu");
-                if (typeof lucide !== "undefined") lucide.createIcons();
+                lucide.createIcons();
             }
         }
     });
@@ -62,16 +27,13 @@ function showErrorModal(message) {
         e.stopPropagation();
     });
 
-
-    // ── Startup modal ──
-
     var startupBtn = document.getElementById("startup-btn");
 
     startupBtn.addEventListener("click", function() {
         dropdownMenu.hidden = true;
         if (hamburgerIcon) {
             hamburgerIcon.setAttribute("data-lucide", "menu");
-            if (typeof lucide !== "undefined") lucide.createIcons();
+            lucide.createIcons();
         }
         showStartupModal();
     });
@@ -91,7 +53,7 @@ function showErrorModal(message) {
                 '</div>' +
             '</div>';
         container.hidden = false;
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        lucide.createIcons();
 
         fetchStartupStatus();
     }
@@ -125,7 +87,7 @@ function showErrorModal(message) {
                 '<button class="btn btn-secondary" onclick="document.getElementById(\'modal-container\').hidden=true">Close</button>' +
                 '<button class="btn btn-primary" id="startup-add-btn">Add to Startup</button>';
         }
-        if (typeof lucide !== "undefined") lucide.createIcons();
+        lucide.createIcons();
 
         var addBtn = document.getElementById("startup-add-btn");
         var removeBtn = document.getElementById("startup-remove-btn");
