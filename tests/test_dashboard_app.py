@@ -428,18 +428,6 @@ class TestDriveAPI:
             assert resp.status_code == 500
             assert "up err" in resp.get_json()["error"]
 
-    def test_drive_select(self, client):
-        resp = client.post("/api/drive/select", json={"folder_id": "fid", "folder_name": "My Folder"})
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["folder_id"] == "fid"
-        assert data["folder_name"] == "My Folder"
-
-    def test_drive_select_missing_fields(self, client):
-        resp = client.post("/api/drive/select", json={"folder_id": "fid"})
-        assert resp.status_code == 400
-        assert "folder_name" in resp.get_json()["error"].lower()
-
 
 class TestFileDialog:
     def test_file_dialog_folder(self, client):

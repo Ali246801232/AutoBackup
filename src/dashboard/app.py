@@ -361,21 +361,6 @@ def api_drive_up():
         logger.error(f"Error navigating to parent in Drive browser: {e}")
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/drive/select", methods=["POST"])
-def api_drive_select():
-    logger.info("Attempting to select folder in Drive browser")
-
-    data = request.get_json() or {}
-    folder_id = data.get("folder_id")
-    folder_name = data.get("folder_name")
-
-    if not folder_id or not folder_name:
-        return jsonify({"error": "folder_id and folder_name are required"}), 400
-    logger.info(f"Drive folder selected: {folder_name} ({folder_id})")
-
-    return jsonify({"folder_id": folder_id, "folder_name": folder_name})
-
-
 @app.route("/api/notify", methods=["POST"])
 def api_notify():
     data = request.get_json() or {}
