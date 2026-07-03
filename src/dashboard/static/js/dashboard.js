@@ -41,7 +41,7 @@
 
     function sendNotification(title, message) {
         apiCall("/api/notify", "POST", { title: title, message: message }).catch(function(e) {
-            console.error("Native notification failed:", e);
+            console.error(e);
         });
     }
 
@@ -71,7 +71,7 @@
 
     window._startBackup = function(btn, name) {
         btn.disabled = true;
-        apiCall("/api/backups/" + configName(name) + "/start_backup").catch(function(e) {
+        apiCall("/api/backups/" + configName(name) + "/start_backup", "POST").catch(function(e) {
             btn.disabled = false;
             showErrorModal("Failed to start backup: " + e.message);
         });
@@ -79,7 +79,7 @@
 
     window._cancelBackup = function(btn, name) {
         btn.disabled = true;
-        apiCall("/api/backups/" + configName(name) + "/cancel_backup").catch(function(e) {
+        apiCall("/api/backups/" + configName(name) + "/cancel_backup", "POST").catch(function(e) {
             btn.disabled = false;
             showErrorModal("Failed to cancel backup: " + e.message);
         });
@@ -87,7 +87,7 @@
 
     window._startScheduler = function(btn, name) {
         btn.disabled = true;
-        apiCall("/api/backups/" + configName(name) + "/start_scheduler").catch(function(e) {
+        apiCall("/api/backups/" + configName(name) + "/start_scheduler", "POST").catch(function(e) {
             btn.disabled = false;
             showErrorModal("Failed to start scheduler: " + e.message);
         });
@@ -95,7 +95,7 @@
 
     window._stopScheduler = function(btn, name) {
         btn.disabled = true;
-        apiCall("/api/backups/" + configName(name) + "/stop_scheduler").catch(function(e) {
+        apiCall("/api/backups/" + configName(name) + "/stop_scheduler", "POST").catch(function(e) {
             btn.disabled = false;
             showErrorModal("Failed to stop scheduler: " + e.message);
         });
@@ -106,7 +106,7 @@
             var card = btn.closest('.backup-card');
             var cardBtns = card.querySelectorAll("button");
             for (var i = 0; i < cardBtns.length; i++) { cardBtns[i].disabled = true; }
-            apiCall("/api/backups/" + configName(name) + "/delete").catch(function(e) {
+            apiCall("/api/backups/" + configName(name) + "/delete", "POST").catch(function(e) {
                 for (var i = 0; i < cardBtns.length; i++) { cardBtns[i].disabled = false; }
                 showErrorModal("Failed to delete backup: " + e.message);
             });
@@ -246,15 +246,18 @@
         if (polling) return;
         polling = true;
 
-        apiCall("/api/backups/", "GET").then(function(data) {
-            detectChanges(data, lastState);
-            lastState = data;
-            renderCards(data, searchInput.value);
-        }).catch(function(e) {
-            console.error("Poll failed:", e);
-        }).then(function() {
-            polling = false;
-        });
+        apiCall("/api/backups/", "GET")
+            .then(function(data) {
+                detectChanges(data, lastState);
+                renderCards(data, searchInput.value);
+                lastState = data;
+            })
+            .catch(function(e) {
+                console.error(e);
+            })
+            .finally(function() {
+                polling = false;
+            });
     }
 
     fetchBackups();

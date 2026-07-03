@@ -59,11 +59,13 @@
     }
 
     function fetchStartupStatus() {
-        apiCall("/api/startup/status", "GET").then(function(data) {
-            updateStartupUI(data.registered, data.configs_dir);
-        }).catch(function() {
-            updateStartupUI(null);
-        });
+        apiCall("/api/startup/status", "GET")
+            .then(function(data) {
+                updateStartupUI(data.registered, data.configs_dir);
+            })
+            .catch(function() {
+                updateStartupUI(null);
+            });
     }
 
     function updateStartupUI(registered, configsDir) {
@@ -94,23 +96,27 @@
         if (addBtn) {
             addBtn.addEventListener("click", function() {
                 addBtn.disabled = true;
-                apiCall("/api/startup/add", "POST").then(function() {
-                    fetchStartupStatus();
-                }).catch(function(e) {
-                    addBtn.disabled = false;
-                    showErrorModal("Failed to add to startup: " + e.message);
-                });
+                apiCall("/api/startup/add", "POST")
+                    .then(function() {
+                        fetchStartupStatus();
+                    })
+                    .catch(function(e) {
+                        addBtn.disabled = false;
+                        showErrorModal("Failed to add to startup: " + e.message);
+                    });
             });
         }
         if (removeBtn) {
             removeBtn.addEventListener("click", function() {
                 removeBtn.disabled = true;
-                apiCall("/api/startup/remove", "POST").then(function() {
-                    fetchStartupStatus();
-                }).catch(function(e) {
-                    removeBtn.disabled = false;
-                    showErrorModal("Failed to remove from startup: " + e.message);
-                });
+                apiCall("/api/startup/remove", "POST")
+                    .then(function() {
+                        fetchStartupStatus();
+                    })
+                    .catch(function(e) {
+                        removeBtn.disabled = false;
+                        showErrorModal("Failed to remove from startup: " + e.message);
+                    });
             });
         }
     }

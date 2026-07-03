@@ -1,7 +1,7 @@
 import sys
 import webview
-from notifypy import Notify
 from pathlib import Path
+from notifypy import Notify
 from urllib.parse import quote
 from flask import Flask, render_template, abort, jsonify, request
 from werkzeug.exceptions import HTTPException

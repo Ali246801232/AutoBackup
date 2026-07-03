@@ -4,7 +4,8 @@ import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
-from backup.drive import DriveHandler, CancelledError
+from backup.drive import DriveHandler
+from backup._utils import CancelledError
 
 
 @pytest.fixture

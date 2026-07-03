@@ -82,7 +82,7 @@
                 }
             })
             .catch(function(e) {
-                console.error("File dialog error:", e);
+                console.error(e);
             });
     }
 
@@ -94,7 +94,7 @@
                 if (data.path) input.value = data.path;
             })
             .catch(function(e) {
-                console.error("File dialog error:", e);
+                console.error(e);
             });
     }
 
@@ -196,19 +196,19 @@
         var url = isEdit ? "/api/backups/" + encodeURIComponent(originalName) + "/edit" : "/api/backups/new";
 
         apiCall(url, "POST", data)
-        .then(function() {
-            window.location.href = "/";
-        })
-        .catch(function(e) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="save" style="width:16px;height:16px"></i> ' + (isEdit ? "Save Changes" : "Create Config");
-            lucide.createIcons();
+            .then(function() {
+                window.location.href = "/";
+            })
+            .catch(function(e) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="save" style="width:16px;height:16px"></i> ' + (isEdit ? "Save Changes" : "Create Config");
+                lucide.createIcons();
 
-            var errorEl = document.getElementById("error-submit");
-            errorEl.innerHTML = e.message.replace(/\n/g, "<br>");
-            errorEl.classList.add("visible");
+                var errorEl = document.getElementById("error-submit");
+                errorEl.innerHTML = e.message.replace(/\n/g, "<br>");
+                errorEl.classList.add("visible");
 
-        });
+            });
     }
 
     // Event listeners

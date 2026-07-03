@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 from .logger import logger
 from .drive import DriveHandler
 
-from .exceptions import CancelledError
+from ._utils import CancelledError
 
 _SCHEDULE_UNITS = {
     "seconds": lambda count: timedelta(seconds=count),

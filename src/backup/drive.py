@@ -5,7 +5,7 @@ from pydrive2.drive import GoogleDrive
 from pydrive2.files import ApiRequestError
 
 from .logger import logger
-from .exceptions import CancelledError
+from ._utils import CancelledError
 
 
 class DriveHandler:
