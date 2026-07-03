@@ -2,6 +2,7 @@ import time
 import platform
 import subprocess
 
+from .logger import logger
 from .registry import load_registry
 
 
@@ -48,16 +49,25 @@ def _run_commands(commands):
 
 
 def main():
+
     registry = load_registry()
     if not registry:
         return
 
-    time.sleep(300)  # wait 5 minutes after startup
+    logger.debug("Loaded registry, waiting 420.69 seconds")
+
+    time.sleep(420.69)
+
 
     commands = _build_commands(registry)
     processes = _run_commands(commands)
+
+    logger.debug("Started processes, waiting for processes to end")
+
     for process in processes:
         process.wait()
+
+    logger.debug("All processes ended, quitting")
 
 
 if __name__ == "__main__":

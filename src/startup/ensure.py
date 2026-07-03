@@ -2,6 +2,8 @@ import sys
 import platform
 from pathlib import Path
 
+from .logger import logger
+
 system = platform.system()
 
 STARTUP_SCRIPT = (Path(__file__).resolve().parent / "startup.py").resolve()
@@ -17,6 +19,7 @@ def ensure_startup_entry():
         _ensure_startup_linux()
     else:
         raise NotImplementedError(f"Unsupported OS: {system}")
+    logger.debug("Created/ensured startup entry")
 
 def remove_startup_entry():
     if system == "Windows":
@@ -27,6 +30,7 @@ def remove_startup_entry():
         _remove_startup_linux()
     else:
         raise NotImplementedError(f"Unsupported OS: {system}")
+    logger.debug("Removed startup entry")
 
 
 REGISTRY_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"

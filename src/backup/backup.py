@@ -110,7 +110,6 @@ class Backup:
 
     def to_json(self, file_path: str|Path):
         """Save the backup configuration of this instance to a JSON file."""
-        logger.info(f"Attempting to save backup details to {file_path}")
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=4)
         logger.info(f"Saved backup details to {file_path}")
@@ -118,7 +117,6 @@ class Backup:
     @classmethod
     def from_json(cls, file_path: str|Path) -> Backup:
         """Return a Backup instance loaded from a backup configuration from a JSON file."""
-        logger.info(f"Attempting to load backup details from {file_path}")
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         instance = cls.from_dict(data)
@@ -173,7 +171,6 @@ class Backup:
     @property
     def effective_sources(self) -> List[Path]:
         """Return the list of sources flattened and with exclusions removed."""
-        logger.debug("Attempting to fetch effective sources")
         sources = self._flatten_paths(self.sources)
         exclusions = self._flatten_paths(self.exclusions)
         effective_sources = [source for source in sources if source not in exclusions]
@@ -183,7 +180,6 @@ class Backup:
     @property
     def size_bytes(self) -> int:
         """Calculate and return the size of the backup by summing the sizes of all effective sources."""
-        logger.debug("Attempting to calculate backup size")
         size_bytes = sum(path.stat().st_size for path in self.effective_sources)
         logger.debug(f"Calculated backup file size: {size_bytes} B")
         return size_bytes
@@ -276,7 +272,6 @@ class Backup:
             if self._cancel_backup_event.is_set():
                 raise CancelledError("Backup was cancelled")
             
-            logger.debug(f"Attempting to copy source {source}")
             try:
                 source = source.resolve()
 
@@ -373,7 +368,7 @@ class Backup:
         # Verify backup details
         self._progress_message = "Verifying backup details"
         self._progress_percent = None
-        logger.info("Verifying backup details")
+        logger.debug("Verifying backup details")
         try:
             self.verify_details()
             logger.info("Verified backup details")
@@ -386,7 +381,6 @@ class Backup:
         # Create local backup
         self._progress_message = "Creating local backup (0%)"
         self._progress_percent = 0.0
-        logger.info("Attempting to create local backup")
         try:
             backup_folder = self.destination / f"{self.config_name}_{datetime.now():%Y-%m-%d_%H-%M-%S}"
             self.copy_items(self.effective_sources, backup_folder)
@@ -401,7 +395,6 @@ class Backup:
         if self.drive_upload:
             self._progress_message = "Uploading backup to Google Drive"
             self._progress_percent = 0.0
-            logger.info("Attempting to upload backup to Google Drive")
             try:
                 self.drive_handler = DriveHandler()
                 self.drive_handler._cancel_folder_upload_event = self._cancel_backup_event
@@ -524,7 +517,7 @@ class Backup:
                 backup_folder = self.wait_for_backup()
                 logger.info(f"Created scheduled backup")
             except Exception as e:
-                logger.info(f"Scheduled backup errored: {e}")
+                logger.error(f"Scheduled backup errored: {e}")
 
         logger.info(f"Stopped scheduler")
 

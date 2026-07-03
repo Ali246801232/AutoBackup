@@ -16,7 +16,6 @@ FIRST_HIDE = True
 
 def setup_backups(backup_configs_dir: Path = None, start_schedulers: bool = False):
     """Load all backups from config directory, and optionally start their schedulers"""
-    logger.info("Attempting to load backups")
     try:
         set_backup_configs_dir(backup_configs_dir)
         load_backups()
@@ -26,7 +25,6 @@ def setup_backups(backup_configs_dir: Path = None, start_schedulers: bool = Fals
         raise
 
     if start_schedulers:
-        logger.info("Attempting to start schedulers")
         for config_name, backup in BACKUPS.items():
             try:
                 backup.start_scheduler()
@@ -36,7 +34,6 @@ def setup_backups(backup_configs_dir: Path = None, start_schedulers: bool = Fals
 
 def cleanup_backups():
     """Stop all schedulers, cancel all backups, and save all backup configs"""
-    logger.info("Attempting to clean up backups")
     if BACKUPS is not None:
         for config_name, backup in BACKUPS.items():
             try:
@@ -94,11 +91,10 @@ def setup_webview(start_minimized: bool = False):
     """Create the webview window and start the tray icon."""
     global WINDOW, TRAY_ICON, app
 
-    logger.info("Creating webview window")
     WINDOW = webview.create_window("AutoBackup", app, width=1280, height=720, min_size=(640, 480), hidden=start_minimized)
     WINDOW.events.closing += on_window_closing
+    logger.info("Created webview window")
 
-    logger.info("Creating tray icon")
     menu = pystray.Menu(
         pystray.MenuItem(
             text=lambda item: "Hide Window" if WINDOW_VISIBLE else "Show Window",
@@ -116,6 +112,7 @@ def setup_webview(start_minimized: bool = False):
         "AutoBackup",
         menu
     )
+    logger.info("Created tray icon")
 
 def cleanup_webview():
     """Close the webview window and the tray icon."""
@@ -130,7 +127,7 @@ def cleanup_webview():
 
 
 def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, start_minimized: bool = None):
-    logger.info("Running webapp")
+    logger.debug("Setting up webapp")
 
     if start_schedulers is None:
         start_schedulers = False
@@ -141,6 +138,8 @@ def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, 
         setup_backups(backup_configs_dir, start_schedulers)
         setup_webview(start_minimized)
         TRAY_ICON.run_detached()
+
+        logger.info("Running webapp")
         webview.start()
     except Exception as e:
         logger.error(f"Error while running webapp: {e}")
