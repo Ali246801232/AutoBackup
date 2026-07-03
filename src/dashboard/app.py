@@ -183,18 +183,10 @@ def api_new_backup():
     config_name = data.get("config_name")
 
     try:
-        if not config_name:
-            return jsonify({"error": "A config name is required"}), 400
         if config_name in BACKUPS:
             return jsonify({"error": f"A backup config with the name {config_name} already exists"}), 409
-        if not data.get("sources"):
-            return jsonify({"error": "At least one source is required"}), 400
-        if not data.get("destination"):
-            return jsonify({"error": "A destination is required"}), 400
-
-        backup = Backup.from_dict(data)
-
         try:
+            backup = Backup.from_dict(data)
             backup.verify_details()
         except ValueError as e:
             return jsonify({"error": str(e)}), 400

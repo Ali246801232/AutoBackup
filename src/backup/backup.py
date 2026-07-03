@@ -39,9 +39,9 @@ class Backup:
         last_scheduled_attempt: datetime|None = None,
     ):
         # Backup configuration
-        self.config_name: str = config_name
-        self.sources: List[Path] = [Path(source).resolve() for source in sources]
-        self.destination: Path = Path(destination).resolve()
+        self.config_name: str = config_name or None
+        self.sources: List[Path] = [Path(source).resolve() for source in sources or []]
+        self.destination: Path|None = Path(destination).resolve() if destination else None
         self.exclusions: List[Path] = [Path(exclusion).resolve() for exclusion in (exclusions or [])]
         self.schedule: dict|None = schedule
         self.drive_upload: bool = drive_upload
@@ -97,9 +97,9 @@ class Backup:
     @classmethod
     def from_dict(cls, data: dict):
         return cls(
-            config_name = data["config_name"],
-            sources = [Path(p).resolve() for p in data["sources"]],
-            destination = Path(data["destination"]).resolve(),
+            config_name = data.get("config_name", None),
+            sources = [Path(p).resolve() for p in data.get("sources", [])],
+            destination = Path(data["destination"]).resolve() if data.get("destination") else None,
             exclusions = [Path(p).resolve() for p in data.get("exclusions", [])],
             schedule = data.get("schedule"),
             drive_upload = data.get("drive_upload", False),
@@ -305,9 +305,9 @@ class Backup:
         errors = []
 
         if not self.config_name:
-            errors.append("Backup has no configuration name set")
+            errors.append("Backup has no config name set")
         elif not isinstance(self.config_name, str):
-            errors.append("Backup configuration name is not a string")
+            errors.append("Backup config name is not a string")
 
         if not self.sources:
             errors.append("Backup has no sources set.")
