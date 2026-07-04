@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from backup.drive import DriveHandler
-from backup._utils import CancelledError
+from backup.utils import CancelledError
 
 
 @pytest.fixture

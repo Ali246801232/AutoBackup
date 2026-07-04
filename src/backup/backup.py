@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import time
 import threading
 from pathlib import Path
 from typing import List
@@ -10,7 +11,7 @@ from dateutil.relativedelta import relativedelta
 from .logger import logger
 from .drive import DriveHandler
 
-from ._utils import CancelledError
+from .utils import CancelledError, remaining
 
 _SCHEDULE_UNITS = {
     "seconds": lambda count: timedelta(seconds=count),
@@ -432,6 +433,11 @@ class Backup:
             self._cancel_backup_event.clear()
             self._backup_result = None
             self._backup_error = None
+            
+            if self.drive_handler:
+                self.drive_handler._cancel_folder_upload_event.clear()
+                self.drive_handler._folder_upload_root_id = None
+                self.drive_handler._folder_upload_error = None
 
             def runner():
                 try:
@@ -473,16 +479,20 @@ class Backup:
             if self._backup_error and not isinstance(self._backup_error, CancelledError):
                 raise self._backup_error
 
-    def wait_for_backup(self) -> dict:
+    def wait_for_backup(self, timeout: float|None = None) -> dict|None:
         """Wait for the result of the ongoing thread backup."""
+        deadline = time.monotonic() + timeout if timeout is not None else None
+
         if self._backup_thread and self._backup_thread.is_alive():
-            self._backup_thread.join()
+            self._backup_thread.join(timeout=remaining(deadline))
+            if self._backup_thread.is_alive():
+                raise TimeoutError()
 
         if self._backup_error:
             raise self._backup_error
 
         if self.drive_handler:
-            self.drive_handler.wait_for_folder_upload()
+            self.drive_handler.wait_for_folder_upload(timeout=remaining(deadline))
         
         return self._backup_result
 
@@ -565,10 +575,14 @@ class Backup:
             if self._scheduler_error:
                 raise self._scheduler_error
 
-    def wait_for_scheduler(self):
+    def wait_for_scheduler(self, timeout: float|None = None):
         """Wait until the scheduler stops, in case .stop_scheduler() call expected elsewhere."""
+        deadline = time.monotonic() + timeout if timeout is not None else None
+
         if self._scheduler_thread and self._scheduler_thread.is_alive():
-            self._scheduler_thread.join()
+            self._scheduler_thread.join(timeout=remaining(deadline))
+            if self._scheduler_thread.is_alive():
+                raise TimeoutError()
 
         if self._scheduler_error:
             raise self._scheduler_error

@@ -66,13 +66,14 @@ class TestCleanupBackups:
     def test_cleanup_stops_schedulers_and_saves(self, tmp_path):
         from dashboard.runner import cleanup_backups
         import dashboard.runner as runner
+        import dashboard.app
         configs_dir = tmp_path / "configs"
         configs_dir.mkdir()
-        runner.BACKUP_CONFIGS_DIR = configs_dir
+        dashboard.app.BACKUP_CONFIGS_DIR = configs_dir
         backup = MagicMock()
         backup.config_name = "test_backup"
         backup.to_dict.return_value = {"config_name": "test_backup"}
-        runner.BACKUPS = {"test_backup": backup}
+        dashboard.app.BACKUPS = {"test_backup": backup}
         cleanup_backups()
         backup.stop_scheduler.assert_called_once()
         backup.cancel_backup.assert_called_once()
@@ -86,10 +87,11 @@ class TestCleanupBackups:
     def test_cleanup_no_configs_dir(self, tmp_path):
         from dashboard.runner import cleanup_backups
         import dashboard.runner as runner
+        import dashboard.app
         backup = MagicMock()
         backup.config_name = "test_backup"
-        runner.BACKUP_CONFIGS_DIR = None
-        runner.BACKUPS = {"test_backup": backup}
+        dashboard.app.BACKUP_CONFIGS_DIR = None
+        dashboard.app.BACKUPS = {"test_backup": backup}
         cleanup_backups()
         backup.stop_scheduler.assert_called_once()
 

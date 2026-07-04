@@ -206,7 +206,9 @@ class TestDeleteBackup:
 class TestStartCancelBackup:
     def test_start_backup(self, client, setup_backups, created_backup):
         import dashboard.app
-        with patch.object(dashboard.app.Backup, "start_backup") as mock_start:
+        with patch.object(dashboard.app.Backup, "start_backup") as mock_start, \
+             patch.object(dashboard.app, "add_to_events_queue"), \
+             patch.object(dashboard.app, "start_backup_watcher"):
             resp = client.post("/api/backups/test_config/start_backup")
             assert resp.status_code == 202
             mock_start.assert_called_once()
@@ -230,7 +232,9 @@ class TestStartCancelBackup:
 class TestSchedulerAPI:
     def test_start_scheduler(self, client, setup_backups, created_backup):
         import dashboard.app
-        with patch.object(dashboard.app.Backup, "start_scheduler") as mock_start:
+        with patch.object(dashboard.app.Backup, "start_scheduler") as mock_start, \
+             patch.object(dashboard.app, "add_to_events_queue"), \
+             patch.object(dashboard.app, "start_scheduler_watcher"):
             resp = client.post("/api/backups/test_config/start_scheduler")
             assert resp.status_code == 202
             mock_start.assert_called_once()

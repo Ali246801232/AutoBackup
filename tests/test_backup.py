@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 import pytest
 from backup.backup import Backup, _schedule_to_timedelta
-from backup._utils import CancelledError
+from backup.utils import CancelledError
 
 
 @pytest.fixture

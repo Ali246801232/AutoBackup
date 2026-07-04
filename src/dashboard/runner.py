@@ -5,9 +5,9 @@ from pathlib import Path
 
 from .app import (
     app,
-    BACKUPS, BACKUP_CONFIGS_DIR,
-    set_backup_configs_dir, load_backups, save_backups,
-    ICON_PATH, NOTIFIER
+    ICON_PATH, NOTIFIER,
+    get_backups, get_backup_configs_dir, set_backup_configs_dir, load_backups, save_backups,
+    setup_events_queue, cleanup_events_queue
 )
 from .logger import logger
 
@@ -24,13 +24,13 @@ def setup_backups(backup_configs_dir: Path = None, start_schedulers: bool = Fals
     try:
         set_backup_configs_dir(backup_configs_dir)
         load_backups()
-        logger.info(f"Loaded {len(BACKUPS)} backups from {BACKUP_CONFIGS_DIR}")
+        logger.info(f"Loaded {len(get_backups())} backups from {get_backup_configs_dir()}")
     except Exception as e:
         logger.error(f"Error while loading backups: {e}")
         raise
 
     if start_schedulers:
-        for config_name, backup in BACKUPS.items():
+        for config_name, backup in get_backups().items():
             try:
                 backup.start_scheduler()
                 logger.info(f"Started scheduler for backup {config_name}")
@@ -39,8 +39,8 @@ def setup_backups(backup_configs_dir: Path = None, start_schedulers: bool = Fals
 
 def cleanup_backups():
     """Stop all schedulers, cancel all backups, and save all backup configs"""
-    if BACKUPS is not None:
-        for config_name, backup in BACKUPS.items():
+    if get_backups() is not None:
+        for config_name, backup in get_backups().items():
             try:
                 backup.stop_scheduler()
                 backup.cancel_backup()
@@ -48,10 +48,10 @@ def cleanup_backups():
             except Exception as e:
                 logger.error(f"Error while stopping backup {config_name} during cleanup: {e}")
 
-        if BACKUP_CONFIGS_DIR is not None:
+        if get_backup_configs_dir() is not None:
             try:
                 save_backups()
-                logger.info(f"Saved {len(BACKUPS)} backups to {BACKUP_CONFIGS_DIR}")
+                logger.info(f"Saved {len(get_backups())} backups to {get_backup_configs_dir()}")
             except Exception as e:
                 logger.error(f"Error while saving backups during cleanup: {e}")
 
@@ -142,6 +142,7 @@ def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, 
     try:
         setup_backups(backup_configs_dir, start_schedulers)
         setup_webview(start_minimized)
+        setup_events_queue()
         TRAY_ICON.run_detached()
 
         logger.info("Running webapp")
@@ -149,5 +150,6 @@ def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, 
     except Exception as e:
         logger.error(f"Error while running webapp: {e}")
     finally:
+        cleanup_events_queue()
         cleanup_backups()
         cleanup_webview()

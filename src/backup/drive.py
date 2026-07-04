@@ -1,11 +1,12 @@
 import threading
+import time
 from pathlib import Path
 from pydrive2.auth import GoogleAuth, RefreshError
 from pydrive2.drive import GoogleDrive
 from pydrive2.files import ApiRequestError
 
 from .logger import logger
-from ._utils import CancelledError
+from .utils import CancelledError, remaining
 
 
 class DriveHandler:
@@ -249,9 +250,12 @@ class DriveHandler:
             if self._folder_upload_error and not isinstance(self._folder_upload_error, CancelledError):
                 raise self._folder_upload_error
 
-    def wait_for_folder_upload(self):
+    def wait_for_folder_upload(self, timeout: float|None = None):
+        deadline = time.monotonic() + timeout if timeout is not None else None
         if self._folder_upload_thread:
-            self._folder_upload_thread.join()
+            self._folder_upload_thread.join(timeout=remaining(deadline))
+            if self._folder_upload_thread.is_alive():
+                raise TimeoutError()
 
         if self._folder_upload_error:
             raise self._folder_upload_error

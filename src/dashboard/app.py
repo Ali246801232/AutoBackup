@@ -1,12 +1,14 @@
 import sys
 import webview
+import threading
 from pathlib import Path
 from notifypy import Notify
+from queue import Queue, Empty
 from urllib.parse import quote
 from flask import Flask, render_template, abort, jsonify, request
 from werkzeug.exceptions import HTTPException
 
-from backup import Backup, DriveHandler
+from backup import Backup, DriveHandler, CancelledError
 from startup import is_in_startup, add_to_startup, remove_from_startup
 from .logger import logger
 
@@ -27,9 +29,120 @@ NOTIFIER = Notify()
 NOTIFIER.icon = ICON_PATH
 
 
+EVENTS_QUEUE: Queue = None
+BACKUP_WATCHERS: dict[str, threading.Thread] = {}
+SCHEDULER_WATCHERS: dict[str, threading.Thread] = {}
+STOP_BACKUP_WATCHER_EVENTS: dict[str, threading.Event] = {}
+STOP_SCHEDULER_WATCHER_EVENTS: dict[str, threading.Event] = {}
+GLOBAL_STOP_WATCHING_EVENT = None
+WATCHER_TIMEOUT = 3
+
+def setup_events_queue():
+    global EVENTS_QUEUE, GLOBAL_STOP_WATCHING_EVENT
+    EVENTS_QUEUE = Queue()
+    GLOBAL_STOP_WATCHING_EVENT = threading.Event()
+    for backup in BACKUPS.values():
+        if backup.scheduler_running:
+            start_scheduler_watcher(backup)
+
+def cleanup_events_queue():
+    GLOBAL_STOP_WATCHING_EVENT.set()
+    for watcher in BACKUP_WATCHERS.values(): watcher.join()
+    for watcher in SCHEDULER_WATCHERS.values(): watcher.join()
+    drain_events_queue()
+
+def add_to_events_queue(type: str, message: str):
+    EVENTS_QUEUE.put({"type": type, "message": message})
+
+def drain_events_queue() -> list:
+    items = []
+    while not EVENTS_QUEUE.empty():
+        try:
+            items.append(EVENTS_QUEUE.get_nowait())
+        except Empty:
+            break
+    return items
+
+def start_backup_watcher(backup: Backup):
+    def watch():
+        while True:
+            try:
+                result = backup.wait_for_backup(timeout=WATCHER_TIMEOUT)
+                message = (
+                    f"{backup.config_name}" +
+                    f" | Backup saved locally" +
+                    (f" and uploaded to Google Drive" if result.get("drive_backup_folder_id") else "")
+                )
+                add_to_events_queue("success", message)
+                break
+            except TimeoutError:
+                if GLOBAL_STOP_WATCHING_EVENT and GLOBAL_STOP_WATCHING_EVENT.is_set():
+                    break
+                stop_backup_watcher_event = STOP_BACKUP_WATCHER_EVENTS.get(backup.config_name)
+                if stop_backup_watcher_event and stop_backup_watcher_event.is_set():
+                    break
+            except CancelledError:
+                add_to_events_queue("info", f"{backup.config_name} | Backup was cancelled")
+                break
+            except Exception as e:
+                add_to_events_queue("error", f"{backup.config_name} | Backup errored: {e}")
+                break
+
+    stop_backup_watcher(backup)
+    watcher_thread = threading.Thread(target=watch, daemon=True)
+    watcher_thread.start()
+
+def stop_backup_watcher(backup: Backup):
+    stop_backup_watcher_event = STOP_BACKUP_WATCHER_EVENTS.get(backup.config_name)
+    if not stop_backup_watcher_event:
+        stop_backup_watcher_event = STOP_BACKUP_WATCHER_EVENTS[backup.config_name] = threading.Event()
+    stop_backup_watcher_event.set()
+    watcher_thread = BACKUP_WATCHERS.get(backup.config_name)
+    if watcher_thread and watcher_thread.is_alive():
+        watcher_thread.join()
+    stop_backup_watcher_event.clear()
+
+def start_scheduler_watcher(backup: Backup):
+    def watch():
+        while True:
+            try:
+                backup.wait_for_scheduler(timeout=WATCHER_TIMEOUT)
+                add_to_events_queue("info", f"{backup.config_name} | Scheduler was stopped")
+                break
+            except TimeoutError:
+                if GLOBAL_STOP_WATCHING_EVENT and GLOBAL_STOP_WATCHING_EVENT.is_set():
+                    break
+                stop_scheduler_watcher_event = STOP_SCHEDULER_WATCHER_EVENTS.get(backup.config_name)
+                if stop_scheduler_watcher_event and stop_scheduler_watcher_event.is_set():
+                    break
+            except Exception as e:
+                add_to_events_queue("error", f"{backup.config_name} | Scheduler errored: {e}")
+                break
+
+    stop_scheduler_watcher(backup)
+    watcher_thread = threading.Thread(target=watch, daemon=True)
+    watcher_thread.start()
+
+def stop_scheduler_watcher(backup: Backup):
+    stop_scheduler_watcher_event = STOP_SCHEDULER_WATCHER_EVENTS.get(backup.config_name)
+    if not stop_scheduler_watcher_event:
+        stop_scheduler_watcher_event = STOP_SCHEDULER_WATCHER_EVENTS[backup.config_name] = threading.Event()
+    stop_scheduler_watcher_event.set()
+    watcher_thread = SCHEDULER_WATCHERS.get(backup.config_name)
+    if watcher_thread and watcher_thread.is_alive():
+        watcher_thread.join()
+    stop_scheduler_watcher_event.clear()
+
+
 DEFAULT_BACKUP_CONFIGS_DIR = Path.home() / "AutoBackup" / "backup_configs"
 BACKUP_CONFIGS_DIR: Path = DEFAULT_BACKUP_CONFIGS_DIR
 BACKUPS: dict[str, Backup]  = {}
+
+def get_backups() -> dict[str, Backup]:
+    return BACKUPS
+
+def get_backup_configs_dir() -> Path:
+    return BACKUP_CONFIGS_DIR
 
 def set_backup_configs_dir(dir_path: str | Path = None) -> Path:
     global BACKUP_CONFIGS_DIR
@@ -99,6 +212,8 @@ def api_start_backup(config_name):
         abort(404, f"No backup found for \"{config_name}\"")
     try:
         backup.start_backup()
+        add_to_events_queue("success", f"{backup.config_name} | Backup started")
+        start_backup_watcher(backup)
 
         logger.info(f"Started backup for \"{config_name}\"")
         return jsonify({"status": f"Started backup for \"{config_name}\""}), 202
@@ -128,6 +243,8 @@ def api_start_scheduler(config_name):
         abort(404, f"No backup found for \"{config_name}\"")
     try:
         backup.start_scheduler()
+        add_to_events_queue("success", f"{backup.config_name} | Scheduler started")
+        start_scheduler_watcher(backup)
 
         logger.info(f"Started scheduler for \"{config_name}\"")
         return jsonify({"status": f"Started scheduler for \"{config_name}\""}), 202
@@ -166,6 +283,9 @@ def api_delete_backup(config_name):
 
         config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
         config_file.unlink(missing_ok=True)
+        
+        stop_backup_watcher(backup)
+        stop_scheduler_watcher(backup)
 
         logger.info(f"Deleted backup for \"{config_name}\"")
         return jsonify({"status": f"Deleted backup for \"{config_name}\""}), 200
@@ -238,6 +358,17 @@ def api_edit_backup(config_name):
         backup.update_from_dict(old_config)
         logger.error(f"Failed to update backup for \"{config_name}\": {e}")
         return jsonify({"error": f"Failed to update backup for \"{config_name}\": {e}"}), 500
+
+
+@app.route("/api/backups/events_queue")
+def api_events_queue():
+    try:
+        items = drain_events_queue()
+        logger.info(f"Fetched {len(items)} items from events queue")
+        return jsonify(items)
+    except Exception as e:
+        logger.error("Failed to fetch items from events queue")
+        return jsonify({"error": "Failed to fetch items from events queue"}), 500
 
 
 @app.route("/api/startup/status")

@@ -1,49 +1,13 @@
 (function() {
-    var lastState = {};
+    var lastBackups = {};
     var polling = false;
 
     var cardsContainer = document.getElementById("backup-cards-container");
 
     var searchInput = document.getElementById("search-input");
     searchInput.addEventListener("input", function() {
-        renderCards(lastState, searchInput.value);
+        renderCards(lastBackups, searchInput.value);
     });
-
-    function showToast(message, type) {
-        type = type || "info";
-
-        if (!document.hasFocus()) {
-            sendNotification("AutoBackup", message);
-            return;
-        }
-
-        var container = document.getElementById("toast-container");
-
-        var toast = document.createElement("div");
-        toast.className = "toast toast-" + type;
-
-        var iconMap = { info: "info", success: "check-circle", error: "alert-circle" };
-        var iconName = iconMap[type] || "info";
-        var iconSvg = '<i data-lucide="' + iconName + '" style="width:18px;height:18px"></i>';
-
-        toast.innerHTML = iconSvg +
-            '<span class="toast-message">' + escapeHtml(message) + '</span>' +
-            '<button class="toast-close" onclick="this.parentElement.classList.add(\'toast-out\');setTimeout(function(){this.parentElement.remove()}.bind(this),300)"><i data-lucide="x" style="width:16px;height:16px"></i></button>';
-
-        container.appendChild(toast);
-        lucide.createIcons();
-
-        setTimeout(function() {
-            toast.classList.add("toast-out");
-            setTimeout(function() { toast.remove(); }, 300);
-        }, 5000);
-    }
-
-    function sendNotification(title, message) {
-        apiCall("/api/notify", "POST", { title: title, message: message }).catch(function(e) {
-            console.error(e);
-        });
-    }
 
     function showDeleteModal(name, onConfirm) {
         var container = document.getElementById("modal-container");
@@ -212,45 +176,14 @@
         lucide.createIcons();
     }
 
-    function detectChanges(newData, oldData) {
-        for (var name in newData) {
-            var old = oldData[name] || { status: {} };
-            var cur = newData[name];
-            var os = old.status || {};
-            var cs = cur.status || {};
-
-            if (!os.backup_error && cs.backup_error) {
-                var msg = cs.backup_error_message || 'no error message';
-                showToast('Backup "' + name + '" failed: ' + msg, 'error');
-            }
-            if (!os.backup_running && cs.backup_running) {
-                showToast('Backup "' + name + '" started', 'info');
-            }
-            if (os.backup_running && !cs.backup_running && !cs.backup_error) {
-                showToast('Backup "' + name + '" completed', 'success');
-            }
-
-            if (!os.scheduler_error && cs.scheduler_error) {
-                showToast('Scheduler for "' + name + '" errored', 'error');
-            }
-            if (!os.scheduler_running && cs.scheduler_running) {
-                showToast('Scheduler for "' + name + '" started', 'info');
-            }
-            if (os.scheduler_running && !cs.scheduler_running && !cs.scheduler_error) {
-                showToast('Scheduler for "' + name + '" stopped', 'info');
-            }
-        }
-    }
-
     function fetchBackups() {
         if (polling) return;
         polling = true;
 
         apiCall("/api/backups/", "GET")
             .then(function(data) {
-                detectChanges(data, lastState);
                 renderCards(data, searchInput.value);
-                lastState = data;
+                lastBackups = data;
             })
             .catch(function(e) {
                 console.error(e);
