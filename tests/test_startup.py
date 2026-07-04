@@ -4,9 +4,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-import startup.registry as registry
-import startup.startup as startup
-import startup.ensure as ensure
+from startup import registry, startup, ensure
 
 PYTHON_EXECUTABLE = "python"
 
@@ -69,7 +67,7 @@ def macos_system():
 
 class TestRegistry:
     def test_load_registry(self, startup_registry):
-        registry_path, dummy_registry = startup_registry
+        _, dummy_registry = startup_registry
         result = registry.load_registry()
         assert result == dummy_registry
 
@@ -82,7 +80,7 @@ class TestRegistry:
         assert saved == dummy_registry
 
     def test_add_to_startup_new(self, startup_registry):
-        registry_path, dummy_registry = startup_registry
+        registry_path, _ = startup_registry
         new_dir = str(registry_path.parent / "new_config")
         registry.add_to_startup(new_dir, PYTHON_EXECUTABLE)
         saved = json.loads(registry_path.read_text(encoding="utf-8"))
