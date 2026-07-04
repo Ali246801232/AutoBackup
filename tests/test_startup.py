@@ -142,19 +142,19 @@ class TestStartupScript:
 
     def test_run_command_windows(self, windows_system, mock_popen):
         import subprocess
-        try:  # handle these tests being run on non-Windows
-            expected_flags = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS
-        except AttributeError:
-            expected_flags = 0x08000000
         command = ["python", "-c", "pass"]
-        result = startup.run_command(command)
+        with (  # patch in case tests run on non-Windows
+            patch("startup.startup.subprocess.CREATE_NO_WINDOW", 0x08000000, create=True),
+            patch("startup.startup.subprocess.DETACHED_PROCESS", 0x00000008, create=True),
+        ):
+            result = startup.run_command(command)
         mock_popen.assert_called_once_with(
             command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             shell=False,
-            creationflags=expected_flags,
+            creationflags=0x08000008,
         )
         assert result == mock_popen.return_value
 
