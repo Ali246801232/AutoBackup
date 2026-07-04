@@ -7,6 +7,7 @@ from .registry import load_registry
 
 
 WAIT_FOR_STARTUP = 420.69
+system = platform.system()
 
 
 def build_commands(registry: dict) -> list:
@@ -20,7 +21,6 @@ def build_commands(registry: dict) -> list:
     return commands
 
 def run_command(command):
-    system = platform.system()
     kwargs = {}
 
     kwargs["stdin"] = subprocess.DEVNULL

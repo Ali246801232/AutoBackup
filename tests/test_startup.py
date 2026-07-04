@@ -50,17 +50,26 @@ def mock_popen():
 
 @pytest.fixture
 def windows_system():
-    with patch("startup.ensure.system", "Windows"):
+    with (
+        patch("startup.ensure.system", "Windows"),
+        patch("startup.startup.system", "Windows"),
+    ):
         yield
 
 @pytest.fixture
 def linux_system():
-    with patch("startup.ensure.system", "Linux"):
+    with (
+        patch("startup.ensure.system", "Linux"),
+        patch("startup.startup.system", "Linux"),
+    ):
         yield
 
 @pytest.fixture
 def macos_system():
-    with patch("startup.ensure.system", "Darwin"):
+    with (
+        patch("startup.ensure.system", "Darwin"),
+        patch("startup.startup.system", "Darwin"),
+    ):
         yield
 
 
@@ -131,15 +140,14 @@ class TestStartupScript:
         ]
         assert startup.build_commands(dummy) == expected
 
-    def test_run_command_windows(self, mock_popen):
+    def test_run_command_windows(self, windows_system, mock_popen):
         import subprocess
         try:  # handle these tests being run on non-Windows
             expected_flags = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS
         except AttributeError:
             expected_flags = 0x08000000
         command = ["python", "-c", "pass"]
-        with patch("startup.startup.platform.system", return_value="Windows"):
-            result = startup.run_command(command)
+        result = startup.run_command(command)
         mock_popen.assert_called_once_with(
             command,
             stdin=subprocess.DEVNULL,
@@ -150,12 +158,25 @@ class TestStartupScript:
         )
         assert result == mock_popen.return_value
 
-    @pytest.mark.parametrize("system_name", ["Linux", "Darwin"])
-    def test_run_command_linux_macos(self, mock_popen, system_name):
+    def test_run_command_linux(self, linux_system, mock_popen):
         import subprocess
         command = ["python", "-c", "pass"]
-        with patch("startup.startup.platform.system", return_value=system_name):
-            result = startup.run_command(command)
+        result = startup.run_command(command)
+        mock_popen.assert_called_once_with(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            shell=False,
+            start_new_session=True,
+            close_fds=True,
+        )
+        assert result == mock_popen.return_value
+
+    def test_run_command_macos(self, macos_system, mock_popen):
+        import subprocess
+        command = ["python", "-c", "pass"]
+        result = startup.run_command(command)
         mock_popen.assert_called_once_with(
             command,
             stdin=subprocess.DEVNULL,
