@@ -110,9 +110,9 @@ class TestRegistry:
         saved = json.loads(registry_path.read_text(encoding="utf-8"))
         assert existing_dir not in saved
 
-    def test_remove_from_startup_missing(self, startup_registry):
+    def test_remove_from_startup_missing(self, startup_registry, tmp_path):
         registry_path, dummy_registry = startup_registry
-        missing_dir = str(registry_path.parent / "nonexistent")
+        missing_dir = str(tmp_path / "missing")
         registry.remove_from_startup(missing_dir)
         saved = json.loads(registry_path.read_text(encoding="utf-8"))
         assert saved == dummy_registry
@@ -122,9 +122,8 @@ class TestRegistry:
         existing_dir = next(iter(dummy_registry))
         assert registry.is_in_startup(existing_dir) is True
 
-    def test_is_in_startup_no(self, startup_registry):
-        registry_path, _ = startup_registry
-        missing_dir = str(registry_path.parent / "nonexistent")
+    def test_is_in_startup_no(self, tmp_path):
+        missing_dir = str(tmp_path / "missing")
         assert registry.is_in_startup(missing_dir) is False
 
 

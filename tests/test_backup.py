@@ -278,15 +278,15 @@ class TestStatus:
         assert status["backup_progress"] == {}
 
     def test_after_set_events(self, backup_instance):
-        backup_instance._backup_error = RuntimeError("test error")
+        backup_instance._backup_error = RuntimeError("error")
         backup_instance.backup_error_event.set()
-        backup_instance._scheduler_error = RuntimeError("test error")
+        backup_instance._scheduler_error = RuntimeError("error")
         backup_instance.scheduler_error_event.set()
         status = backup_instance.status
         assert status["backup_error"] is True
-        assert status["backup_error_message"] == "test error"
+        assert status["backup_error_message"] == "error"
         assert status["scheduler_error"] is True
-        assert status["scheduler_error_message"] == "test error"
+        assert status["scheduler_error_message"] == "error"
 
 
 class TestGetDestinationPaths:
@@ -392,25 +392,25 @@ class TestVerifyDetails:
         with pytest.raises(ValueError):
             backup_instance.verify_details()
 
-    def test_verify_sources(self, backup_instance):
+    def test_verify_sources(self, backup_instance, tmp_path):
         backup_instance.sources = []
         with pytest.raises(ValueError):
             backup_instance.verify_details()
         backup_instance.sources = [1, 2.0, True]
         with pytest.raises(ValueError):
             backup_instance.verify_details()
-        backup_instance.sources = [Path("/missing")]
+        backup_instance.sources = [tmp_path / "missing"]
         with pytest.raises(ValueError):
             backup_instance.verify_details()
 
-    def test_verify_destination(self, backup_instance):
+    def test_verify_destination(self, backup_instance, tmp_path):
         backup_instance.destination = None
         with pytest.raises(ValueError):
             backup_instance.verify_details()
         backup_instance.destination = 1
         with pytest.raises(ValueError):
             backup_instance.verify_details()
-        backup_instance.destination = Path("/missing")
+        backup_instance.destination = tmp_path / "missing"
         with pytest.raises(ValueError):
             backup_instance.verify_details()
 
@@ -442,7 +442,7 @@ class TestVerifyDetails:
         with pytest.raises(ValueError):
             backup_instance.verify_details()
 
-class TestBackup:
+class TestBackupThread:
     def test_start_and_wait(self, backup_instance):
         backup_instance.start_backup()
         result = backup_instance.wait_for_backup()
@@ -479,17 +479,17 @@ class TestBackup:
         backup_instance.cancel_backup(undo=True)
         assert not (destination / "source_dir").exists()
 
-    def test_cancel_re_raises(self, backup_instance):
-        backup_instance._backup_error = RuntimeError("test backup error")
+    def test_cancel_reraises(self, backup_instance):
+        backup_instance._backup_error = RuntimeError("error")
         backup_instance._backup_thread = threading.Thread(target=lambda: time.sleep(0.1), daemon=True)
         backup_instance._backup_thread.start()
-        with pytest.raises(RuntimeError, match="test backup error"):
+        with pytest.raises(RuntimeError, match="error"):
             backup_instance.cancel_backup()
         backup_instance._backup_thread.join()
 
-    def test_wait_re_raises(self, backup_instance):
-        backup_instance._backup_error = RuntimeError("test backup error")
-        with pytest.raises(RuntimeError, match="test backup error"):
+    def test_wait_reraises(self, backup_instance):
+        backup_instance._backup_error = RuntimeError("error")
+        with pytest.raises(RuntimeError, match="error"):
             backup_instance.wait_for_backup()
 
 
@@ -522,17 +522,17 @@ class TestScheduler:
     def test_wait_no_scheduler(self, backup_instance):
         backup_instance.wait_for_scheduler()
 
-    def test_stop_re_raises(self, backup_instance):
-        backup_instance._scheduler_error = RuntimeError("test scheduler error")
+    def test_stop_reraises(self, backup_instance):
+        backup_instance._scheduler_error = RuntimeError("error")
         backup_instance._scheduler_thread = threading.Thread(target=lambda: time.sleep(0.1), daemon=True)
         backup_instance._scheduler_thread.start()
-        with pytest.raises(RuntimeError, match="test scheduler error"):
+        with pytest.raises(RuntimeError, match="error"):
             backup_instance.stop_scheduler()
         backup_instance._scheduler_thread.join()
 
-    def test_wait_re_raises(self, backup_instance):
-        backup_instance._scheduler_error = RuntimeError("test scheduler error")
-        with pytest.raises(RuntimeError, match="test scheduler error"):
+    def test_wait_reraises(self, backup_instance):
+        backup_instance._scheduler_error = RuntimeError("error")
+        with pytest.raises(RuntimeError, match="error"):
             backup_instance.wait_for_scheduler()
 
     def test_scheduled_backup_sets_last_attempt(self, backup_instance):

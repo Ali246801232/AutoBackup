@@ -9,6 +9,8 @@ from .logger import logger
 from .utils import CancelledError, remaining
 
 
+SCRIPT_DIR = Path(__file__).parent.resolve()
+
 class DriveHandler:
     def __init__(self):
         self._folder_upload_root_id = None
@@ -17,13 +19,27 @@ class DriveHandler:
         self._cancel_folder_upload_event = threading.Event()
         self._folder_upload_progress_callback = None
 
+        self.gauth = None
+        self.drive = None
         
+        self._current_folder = None
+
+    @property
+    def current_folder(self):
+        if self._current_folder is None and self.drive is not None:
+            self.open_folder("root")
+        return self._current_folder
+
+    @current_folder.setter
+    def current_folder(self, value):
+        self._current_folder = value
+
+
     def authenticate(self):
         """Authenticate using saved credentials, otherwise with local web server."""
         try:
-            self.script_dir = Path(__file__).parent.resolve()
-            client_config_file = self.script_dir / "client_secrets.json"
-            credentials_file = self.script_dir / "credentials.json"
+            client_config_file = SCRIPT_DIR / "client_secrets.json"
+            credentials_file = SCRIPT_DIR / "credentials.json"
 
             self.gauth = GoogleAuth(settings={
                 "client_config_backup": "file",
@@ -59,7 +75,6 @@ class DriveHandler:
             self.gauth.SaveCredentialsFile()
 
             self.drive = GoogleDrive(self.gauth)
-            self.open_folder("root")
         except Exception as e:
             raise RuntimeError(f"Failed to authenticate: {e}") from e
 
