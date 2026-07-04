@@ -25,8 +25,10 @@ PYTHON_EXECUTABLE: str = sys.executable
 DRIVE_BROWSER: DriveHandler = DriveHandler()
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 ICON_PATH = str(STATIC_DIR / "img" / "logo.png")
-NOTIFIER = Notify()
-NOTIFIER.icon = ICON_PATH
+NOTIFIER = Notify(
+    default_notification_application_name="AutoBackup",
+    default_notification_icon=ICON_PATH
+)
 
 
 EVENTS_QUEUE: Queue = None
@@ -51,8 +53,8 @@ def cleanup_events_queue():
     for watcher in SCHEDULER_WATCHERS.values(): watcher.join()
     drain_events_queue()
 
-def add_to_events_queue(type: str, message: str):
-    EVENTS_QUEUE.put({"type": type, "message": message})
+def add_to_events_queue(type: str = "info", title: str = "AutoBackup", message: str = ""):
+    EVENTS_QUEUE.put({"type": type, "title": title, "message": message})
 
 def drain_events_queue() -> list:
     items = []
@@ -69,11 +71,10 @@ def start_backup_watcher(backup: Backup):
             try:
                 result = backup.wait_for_backup(timeout=WATCHER_TIMEOUT)
                 message = (
-                    f"{backup.config_name}" +
-                    f" | Backup saved locally" +
-                    (f" and uploaded to Google Drive" if result.get("drive_backup_folder_id") else "")
+                    "Backup saved locally" +
+                    (" and uploaded to Google Drive" if result.get("drive_backup_folder_id") else "")
                 )
-                add_to_events_queue("success", message)
+                add_to_events_queue("success", backup.config_name, message)
                 break
             except TimeoutError:
                 if GLOBAL_STOP_WATCHING_EVENT and GLOBAL_STOP_WATCHING_EVENT.is_set():
@@ -82,10 +83,10 @@ def start_backup_watcher(backup: Backup):
                 if stop_backup_watcher_event and stop_backup_watcher_event.is_set():
                     break
             except CancelledError:
-                add_to_events_queue("info", f"{backup.config_name} | Backup was cancelled")
+                add_to_events_queue("info", backup.config_name, "Backup was cancelled")
                 break
             except Exception as e:
-                add_to_events_queue("error", f"{backup.config_name} | Backup errored: {e}")
+                add_to_events_queue("error", backup.config_name, f"Backup errored: {e}")
                 break
 
     stop_backup_watcher(backup)
@@ -107,7 +108,7 @@ def start_scheduler_watcher(backup: Backup):
         while True:
             try:
                 backup.wait_for_scheduler(timeout=WATCHER_TIMEOUT)
-                add_to_events_queue("info", f"{backup.config_name} | Scheduler was stopped")
+                add_to_events_queue("info", backup.config_name, "Scheduler was stopped")
                 break
             except TimeoutError:
                 if GLOBAL_STOP_WATCHING_EVENT and GLOBAL_STOP_WATCHING_EVENT.is_set():
@@ -116,7 +117,7 @@ def start_scheduler_watcher(backup: Backup):
                 if stop_scheduler_watcher_event and stop_scheduler_watcher_event.is_set():
                     break
             except Exception as e:
-                add_to_events_queue("error", f"{backup.config_name} | Scheduler errored: {e}")
+                add_to_events_queue("error", backup.config_name, f"Scheduler errored: {e}")
                 break
 
     stop_scheduler_watcher(backup)
@@ -212,7 +213,7 @@ def api_start_backup(config_name):
         abort(404, f"No backup found for \"{config_name}\"")
     try:
         backup.start_backup()
-        add_to_events_queue("success", f"{backup.config_name} | Backup started")
+        add_to_events_queue("success", backup.config_name, "Backup started")
         start_backup_watcher(backup)
 
         logger.info(f"Started backup for \"{config_name}\"")
@@ -243,7 +244,7 @@ def api_start_scheduler(config_name):
         abort(404, f"No backup found for \"{config_name}\"")
     try:
         backup.start_scheduler()
-        add_to_events_queue("success", f"{backup.config_name} | Scheduler started")
+        add_to_events_queue("success", backup.config_name, "Scheduler started")
         start_scheduler_watcher(backup)
 
         logger.info(f"Started scheduler for \"{config_name}\"")

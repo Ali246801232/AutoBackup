@@ -1,9 +1,9 @@
 (function() {
-    function showToast(type, message) {
+    function showToast(type, title, message) {
         type = type || "info";
 
         if (!document.hasFocus()) {
-            sendNotification("AutoBackup", message);
+            sendNotification(title, message);
             return;
         }
 
@@ -16,8 +16,14 @@
         var iconName = iconMap[type] || "info";
         var iconSvg = '<i data-lucide="' + iconName + '" style="width:18px;height:18px"></i>';
 
+        var titleHtml = '<div class="toast-title">' + escapeHtml(title) + '</div>';
+        var messageHtml = '<span class="toast-message">' + escapeHtml(message) + '</span>';
+
         toast.innerHTML = iconSvg +
-            '<span class="toast-message">' + escapeHtml(message) + '</span>' +
+            '<div class="toast-content">' +
+                titleHtml +
+                messageHtml +
+            '</div>' +
             '<button class="toast-close" onclick="this.parentElement.classList.add(\'toast-out\');setTimeout(function(){this.parentElement.remove()}.bind(this),300)"><i data-lucide="x" style="width:16px;height:16px"></i></button>';
 
         container.appendChild(toast);
@@ -37,7 +43,7 @@
 
     function handleEvents(events_queue) {
         for (const item of events_queue) {
-            showToast(item.type, item.message);
+            showToast(item.type, item.title, item.message);
         }
     }
 

@@ -81,8 +81,8 @@ def on_window_closing():
         if TRAY_ICON:
             TRAY_ICON.update_menu()
         if FIRST_HIDE:
-            NOTIFIER.title = "AutoBackup"
-            NOTIFIER.message = "Closing minimizes to system tray.\nTo restore or quit, use the tray icon.\nQuitting cancels ongoing and scheduled backups."
+            NOTIFIER.title = "Window hidden"
+            NOTIFIER.message = "Closing minimizes to system tray.\nTo restore or quit, use the tray icon.\nQuitting cancels all ongoing and scheduled backups."
             NOTIFIER.send(block=False)
             FIRST_HIDE = False
         logger.info("Webview window hidden")
