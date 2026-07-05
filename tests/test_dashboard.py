@@ -1,7 +1,17 @@
 """Test src/dashboard/app.py and src/dashboard/runner.py"""
 
+import sys
 import pytest
 from unittest.mock import MagicMock, patch
+
+# modules that can't be imported in headless environments
+_HEADLESS_MOCKS = {
+    "pystray", "webview", "notifypy",
+    "PIL", "PIL.Image",
+}
+for _mod in _HEADLESS_MOCKS:
+    sys.modules.setdefault(_mod, MagicMock())
+
 from dashboard import app, runner
 
 
