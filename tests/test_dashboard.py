@@ -98,13 +98,11 @@ def backup_dict(tmp_path):
 
 @pytest.fixture(autouse=True)
 def reset_state():
-    previous = app.BACKUPS, app.BACKUP_CONFIGS_DIR, app.DRIVE_BROWSER, app.NOTIFIER
     app.BACKUPS = {}
     app.BACKUP_CONFIGS_DIR = None
     app.DRIVE_BROWSER = app.DriveHandler()
     app.NOTIFIER = app.Notify()
     yield
-    app.BACKUPS, app.BACKUP_CONFIGS_DIR, app.DRIVE_BROWSER, app.NOTIFIER = previous
 
 @pytest.fixture
 def set_backups_config_dir(tmp_path):
