@@ -1,6 +1,5 @@
 """Test src/dashboard/app.py and src/dashboard/runner.py"""
 
-
 import pytest
 from unittest.mock import MagicMock, patch
 from dashboard import app, runner
@@ -97,11 +96,37 @@ def backup_dict(tmp_path):
     }
 
 @pytest.fixture(autouse=True)
-def reset_state():
+def reset_app_state():
     app.BACKUPS = {}
     app.BACKUP_CONFIGS_DIR = None
-    app.DRIVE_BROWSER = app.DriveHandler()
+
     app.NOTIFIER = app.Notify()
+    app.DRIVE_BROWSER = app.DriveHandler()
+
+    try:
+        app.cleanup_events_queue()
+    except:
+        pass
+    app.EVENTS_QUEUE = None
+    app.GLOBAL_STOP_WATCHING_EVENT = None
+    app.BACKUP_WATCHERS = {}
+    app.SCHEDULER_WATCHERS = {}
+    app.STOP_BACKUP_WATCHER_EVENTS = {}
+    app.STOP_SCHEDULER_WATCHER_EVENTS = {}
+
+
+@pytest.fixture(autouse=True)
+def reset_runner_state():
+    try:
+        runner.cleanup_backups()
+        runner.cleanup_webview()
+    except:
+        pass
+    runner.WINDOW = None
+    runner.TRAY_ICON = None
+    runner.WINDOW_VISIBLE = False
+    runner.QUITTING = False
+    runner.FIRST_HIDE = True
 
 @pytest.fixture
 def set_backups_config_dir(tmp_path):
