@@ -1,9 +1,9 @@
 """Test src/startup/registry.py, src/startup/startup.py, and src/startup/ensure.py"""
 
 import json
-from unittest.mock import MagicMock, patch
 
 import pytest
+from unittest.mock import MagicMock, patch
 from startup import registry, startup, ensure
 
 PYTHON_EXECUTABLE = "python"
@@ -23,29 +23,32 @@ def ensure_paths(tmp_path):
     ):
         yield autostart_dir, launch_agent_dir
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def startup_registry(tmp_path):
-    registry_path = tmp_path / "home_dir" / "AutoBackup" / "startup.json"
-    registry_path.parent.mkdir(parents=True, exist_ok=True)
-    dummy_registry = {
+    yield {
         str(tmp_path / "backup_configs" / "test_config_1"): PYTHON_EXECUTABLE,
         str(tmp_path / "backup_configs" / "test_config_2"): PYTHON_EXECUTABLE,
     }
-    registry_path.write_text(json.dumps(dummy_registry, indent=4))
+
+@pytest.fixture(autouse=True)
+def startup_registry_path(tmp_path, startup_registry):
+    registry_path = tmp_path / "home_dir" / "AutoBackup" / "startup.json"
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_text(json.dumps(startup_registry, indent=4))
     with patch("startup.registry.STARTUP_REGISTRY", registry_path):
-        yield registry_path, dummy_registry
+        yield registry_path
 
 
 @pytest.fixture(autouse=True)
 def mock_winreg():
-    mock = MagicMock()
-    with patch.dict("sys.modules", {"winreg": mock}):
-        yield mock
+    winreg = MagicMock()
+    with patch.dict("sys.modules", {"winreg": winreg}):
+        yield winreg
 
 @pytest.fixture(autouse=True)
-def mock_popen():
-    with patch("startup.startup.subprocess.Popen") as mock:
-        yield mock
+def mock_Popen():
+    with patch("startup.startup.subprocess.Popen") as Popen:
+        yield Popen
 
 
 @pytest.fixture
@@ -73,56 +76,48 @@ def macos_system():
         yield
 
 
-
 class TestRegistry:
-    def test_load_registry(self, startup_registry):
-        _, dummy_registry = startup_registry
+    def test_load_registry(self, startup_registry, startup_registry_path):
         result = registry.load_registry()
-        assert result == dummy_registry
+        assert result == startup_registry
 
-    def test_save_registry(self, startup_registry):
-        registry_path, dummy_registry = startup_registry
-        new_entry = str(registry_path.parent / "new_config")
-        dummy_registry[new_entry] = PYTHON_EXECUTABLE
-        registry.save_registry(dummy_registry)
-        saved = json.loads(registry_path.read_text(encoding="utf-8"))
-        assert saved == dummy_registry
+    def test_save_registry(self, startup_registry, startup_registry_path):
+        new_entry = str(startup_registry_path.parent / "new_config")
+        startup_registry[new_entry] = PYTHON_EXECUTABLE
+        registry.save_registry(startup_registry)
+        saved = json.loads(startup_registry_path.read_text(encoding="utf-8"))
+        assert saved == startup_registry
 
-    def test_add_to_startup_new(self, startup_registry):
-        registry_path, _ = startup_registry
-        new_dir = str(registry_path.parent / "new_config")
+    def test_add_to_startup_new(self, startup_registry, startup_registry_path):
+        new_dir = str(startup_registry_path.parent / "new_config")
         registry.add_to_startup(new_dir, PYTHON_EXECUTABLE)
-        saved = json.loads(registry_path.read_text(encoding="utf-8"))
+        saved = json.loads(startup_registry_path.read_text(encoding="utf-8"))
         assert saved.get(new_dir) == PYTHON_EXECUTABLE
 
-    def test_add_to_startup_already_exists(self, startup_registry):
-        registry_path, dummy_registry = startup_registry
-        existing_dir = next(iter(dummy_registry))
+    def test_add_to_startup_already_exists(self, startup_registry, startup_registry_path):
+        existing_dir = next(iter(startup_registry))
         new_exe = "python_new"
         registry.add_to_startup(existing_dir, new_exe)
-        saved = json.loads(registry_path.read_text(encoding="utf-8"))
+        saved = json.loads(startup_registry_path.read_text(encoding="utf-8"))
         assert saved[existing_dir] == new_exe
 
-    def test_remove_from_startup_exists(self, startup_registry):
-        registry_path, dummy_registry = startup_registry
-        existing_dir = next(iter(dummy_registry))
+    def test_remove_from_startup_exists(self, startup_registry, startup_registry_path):
+        existing_dir = next(iter(startup_registry))
         registry.remove_from_startup(existing_dir)
-        saved = json.loads(registry_path.read_text(encoding="utf-8"))
+        saved = json.loads(startup_registry_path.read_text(encoding="utf-8"))
         assert existing_dir not in saved
 
-    def test_remove_from_startup_missing(self, startup_registry, tmp_path):
-        registry_path, dummy_registry = startup_registry
+    def test_remove_from_startup_missing(self, startup_registry, startup_registry_path, tmp_path):
         missing_dir = str(tmp_path / "missing")
         registry.remove_from_startup(missing_dir)
-        saved = json.loads(registry_path.read_text(encoding="utf-8"))
-        assert saved == dummy_registry
+        saved = json.loads(startup_registry_path.read_text(encoding="utf-8"))
+        assert saved == startup_registry
 
-    def test_is_in_startup_yes(self, startup_registry):
-        _, dummy_registry = startup_registry
-        existing_dir = next(iter(dummy_registry))
+    def test_is_in_startup_yes(self, startup_registry, startup_registry_path):
+        existing_dir = next(iter(startup_registry))
         assert registry.is_in_startup(existing_dir) is True
 
-    def test_is_in_startup_no(self, tmp_path):
+    def test_is_in_startup_no(self, startup_registry, startup_registry_path, tmp_path):
         missing_dir = str(tmp_path / "missing")
         assert registry.is_in_startup(missing_dir) is False
 
@@ -139,7 +134,7 @@ class TestStartupScript:
         ]
         assert startup.build_commands(dummy) == expected
 
-    def test_run_command_windows(self, windows_system, mock_popen):
+    def test_run_command_windows(self, windows_system, mock_Popen):
         import subprocess
         command = ["python", "-c", "pass"]
         with (  # patch in case tests run on non-Windows
@@ -147,7 +142,7 @@ class TestStartupScript:
             patch("startup.startup.subprocess.DETACHED_PROCESS", 0x00000008, create=True),
         ):
             result = startup.run_command(command)
-        mock_popen.assert_called_once_with(
+        mock_Popen.assert_called_once_with(
             command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
@@ -155,13 +150,13 @@ class TestStartupScript:
             shell=False,
             creationflags=0x08000008,
         )
-        assert result == mock_popen.return_value
+        assert result == mock_Popen.return_value
 
-    def test_run_command_linux(self, linux_system, mock_popen):
+    def test_run_command_linux(self, linux_system, mock_Popen):
         import subprocess
         command = ["python", "-c", "pass"]
         result = startup.run_command(command)
-        mock_popen.assert_called_once_with(
+        mock_Popen.assert_called_once_with(
             command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
@@ -170,13 +165,13 @@ class TestStartupScript:
             start_new_session=True,
             close_fds=True,
         )
-        assert result == mock_popen.return_value
+        assert result == mock_Popen.return_value
 
-    def test_run_command_macos(self, macos_system, mock_popen):
+    def test_run_command_macos(self, macos_system, mock_Popen):
         import subprocess
         command = ["python", "-c", "pass"]
         result = startup.run_command(command)
-        mock_popen.assert_called_once_with(
+        mock_Popen.assert_called_once_with(
             command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
@@ -185,16 +180,16 @@ class TestStartupScript:
             start_new_session=True,
             close_fds=True,
         )
-        assert result == mock_popen.return_value
+        assert result == mock_Popen.return_value
 
-    def test_run_commands(self, mock_popen):
+    def test_run_commands(self, mock_Popen):
         commands = [
             ["python", "-c", "pass"],
             ["python", "-V"],
         ]
         result = startup.run_commands(commands)
-        assert result == [mock_popen.return_value, mock_popen.return_value]
-        assert mock_popen.call_count == len(commands)
+        assert result == [mock_Popen.return_value, mock_Popen.return_value]
+        assert mock_Popen.call_count == len(commands)
 
 
 class TestEnsureStartupEntry:

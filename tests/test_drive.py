@@ -3,9 +3,9 @@
 import time
 import json
 import threading
-from unittest.mock import MagicMock, patch
 
 import pytest
+from unittest.mock import MagicMock, patch
 from backup import drive
 
 
@@ -50,7 +50,7 @@ def script_dir(tmp_path):
         yield scripts_dir
 
 @pytest.fixture(autouse=True)
-def mock_drive():
+def mock_pydrive2():
     """Patch GoogleAuth and GoogleDrive with configured side effects."""
     with (
         patch("backup.drive.GoogleAuth") as GoogleAuth,
@@ -59,15 +59,13 @@ def mock_drive():
         gauth = GoogleAuth.return_value
         gauth.access_token_expired = False
         gauth.settings = {}
-
         drive = GoogleDrive.return_value
         drive.CreateFile.side_effect = _create_file_side_effect
         drive.ListFile.return_value.GetList.return_value = []
-
         yield
 
 @pytest.fixture
-def handler_instance(mock_drive, script_dir):
+def handler_instance(mock_pydrive2, script_dir):
     handler_instance = drive.DriveHandler()
     handler_instance.authenticate()
     return handler_instance
