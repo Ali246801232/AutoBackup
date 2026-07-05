@@ -2,12 +2,12 @@
 
 Existing tests are bumass garbage; planning to:
 
-[ ] Rewrite `test_dashboard_app.py` -> `test_app.py`
+[ ] Fully rewrite `tests_old/test_dashboard_app.py` -> `tests/test_app.py`.
 
-[ ] Rewrite `test_dashboard_runner.py` -> `test_runner.py`
+[ ] Fully rewrite `tests_old/test_runner.py` -> `tests/test_runner.py`.
 
-[x] Refactor `test_backup.py`
+[x] Refactor `tests_old/test_backup.py` -> `tests/test_backup.py`.
 
-[x] Add `test_startup.py` to test `src/startup/`
+[x] Add `test_startup.py` to test `src/startup/`.
 
-[x] Rewrite `test_drive.py`
+[x] Fully rewrite `tests_old/test_drive.py` -> `tests/test_drive.py`.
