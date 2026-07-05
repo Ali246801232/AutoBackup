@@ -102,7 +102,6 @@ def reset_state():
     app.BACKUP_CONFIGS_DIR = None
     app.DRIVE_BROWSER = app.DriveHandler()
     app.NOTIFIER = app.Notify()
-    yield
 
 @pytest.fixture
 def set_backups_config_dir(tmp_path):
