@@ -1,14 +1,7 @@
 """Test src/dashboard/runner.py"""
 
-import sys
 import pytest
 from unittest.mock import MagicMock, patch
-
-# modules that can't be imported in headless environments; patched properly later
-_HEADLESS_MOCKS = {"pystray", "webview"}
-for _mod in _HEADLESS_MOCKS:
-    sys.modules.setdefault(_mod, MagicMock())
-
 from dashboard import runner
 
 
