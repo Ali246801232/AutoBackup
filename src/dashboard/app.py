@@ -91,6 +91,7 @@ def start_backup_watcher(backup: Backup):
 
     stop_backup_watcher(backup)
     watcher_thread = threading.Thread(target=watch, daemon=True)
+    BACKUP_WATCHERS[backup.config_name] = watcher_thread
     watcher_thread.start()
 
 def stop_backup_watcher(backup: Backup):
@@ -122,6 +123,7 @@ def start_scheduler_watcher(backup: Backup):
 
     stop_scheduler_watcher(backup)
     watcher_thread = threading.Thread(target=watch, daemon=True)
+    SCHEDULER_WATCHERS[backup.config_name] = watcher_thread
     watcher_thread.start()
 
 def stop_scheduler_watcher(backup: Backup):
