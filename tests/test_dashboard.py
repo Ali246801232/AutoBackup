@@ -31,12 +31,12 @@ def mock_webview():
 
 @pytest.fixture(autouse=True)
 def mock_notifypy():
-    with patch("dashboard.app.notify.Notify"):
+    with patch("dashboard.app.Notify"):
         yield
 
 @pytest.fixture(autouse=True)
 def mock_DriveHandler():
-    with patch("dashboard.app.backup.DriveHandler") as DriveHandler:
+    with patch("dashboard.app.DriveHandler") as DriveHandler:
         drive_folders = [
             {"id": "drive-id-1", "title": "drive-title-1"},
             {"id": "drive-id-2", "title": "drive-title-2"}
@@ -46,11 +46,34 @@ def mock_DriveHandler():
         yield DriveHandler
 
 @pytest.fixture(autouse=True)
+def mock_Backup(backup_dict):
+    with patch("dashboard.app.Backup") as Backup:
+        backup = Backup.return_value
+        backup.config_name = "test_config"
+        backup.wait_for_backup.return_value = {
+            "backup_folder": "path/to/folder",
+            "drive_backup_folder_id": None
+        }
+        backup.status = {
+            "backup_running": False,
+            "backup_error": False,
+            "backup_error_message": None,
+            "scheduler_running": False,
+            "scheduler_error": False,
+            "scheduler_error_message": None,
+            "backup_progress": {}
+        }
+        backup.to_dict.return_value = backup_dict
+        backup.scheduler_running = False
+        backup.backup_running = False
+        yield backup
+
+@pytest.fixture(autouse=True)
 def mock_startup():
     with (
-        patch("dashboard.app.startup.is_in_startup") as is_in_startup,
-        patch("dashboard.app.startup.add_to_startup") as add_to_startup,
-        patch("dashboard.app.startup.remove_from_startup") as remove_from_startup
+        patch("dashboard.app.is_in_startup") as is_in_startup,
+        patch("dashboard.app.add_to_startup") as add_to_startup,
+        patch("dashboard.app.remove_from_startup") as remove_from_startup
     ):
         is_in_startup.return_value = True
         yield
@@ -74,12 +97,14 @@ def backup_dict(tmp_path):
     }
 
 @pytest.fixture(autouse=True)
-def _reset_state():
-    previous = app.BACKUPS, app.BACKUP_CONFIGS_DIR
+def reset_state():
+    previous = app.BACKUPS, app.BACKUP_CONFIGS_DIR, app.DRIVE_BROWSER, app.NOTIFIER
     app.BACKUPS = {}
     app.BACKUP_CONFIGS_DIR = None
+    app.DRIVE_BROWSER = app.DriveHandler()
+    app.NOTIFIER = app.Notify()
     yield
-    app.BACKUPS, app.BACKUP_CONFIGS_DIR = previous
+    app.BACKUPS, app.BACKUP_CONFIGS_DIR, app.DRIVE_BROWSER, app.NOTIFIER = previous
 
 @pytest.fixture
 def set_backups_config_dir(tmp_path):
@@ -89,7 +114,7 @@ def set_backups_config_dir(tmp_path):
     return configs_dir
 
 @pytest.fixture
-def set_backups(client, set_backups_config_dir, valid_backup_dict):
-    resp = client.post("/api/backups/new", json=valid_backup_dict)
+def set_backups(client, set_backups_config_dir, backup_dict):
+    resp = client.post("/api/backups/new", json=backup_dict)
     assert resp.status_code == 201
     return resp.get_json()
