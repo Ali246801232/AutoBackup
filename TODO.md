@@ -2,11 +2,12 @@
 
 Existing tests are bumass garbage; planning to:
 
-[ ] Replace `test_dashboard_app.py` and `test_dashboard_runner.py` with a fully rewritten `test_dashboard.py` that tests both
-    - since the mocks are ugly and `runner.py` kinda depends on `app.py`.
+[ ] Rewrite `test_dashboard_app.py` -> `test_app.py`
 
-[x] Refactor `test_backup.py` to merge edge-case classes
+[ ] Rewrite `test_dashboard_runner.py` -> `test_runner.py`
 
-[x] Add a `test_startup.py`  to test `src/startup/`
+[x] Refactor `test_backup.py`
 
-[x] Fully rewrite `test_drive.py` because the mocks look fucking abhorrent.
+[x] Add `test_startup.py` to test `src/startup/`
+
+[x] Rewrite `test_drive.py`

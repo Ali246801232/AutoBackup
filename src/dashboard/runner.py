@@ -131,6 +131,18 @@ def cleanup_webview():
         WINDOW = None
 
 
+def setup(backup_configs_dir, start_schedulers, start_minimized):
+    setup_backups(backup_configs_dir, start_schedulers)
+    setup_webview(start_minimized)
+    setup_events_queue()
+
+
+def cleanup():
+    cleanup_events_queue()
+    cleanup_backups()
+    cleanup_webview()
+
+
 def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, start_minimized: bool = None):
     logger.debug("Setting up webapp")
 
@@ -140,9 +152,7 @@ def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, 
         start_minimized = False
 
     try:
-        setup_backups(backup_configs_dir, start_schedulers)
-        setup_webview(start_minimized)
-        setup_events_queue()
+        setup()
         TRAY_ICON.run_detached()
 
         logger.info("Running webapp")
@@ -150,6 +160,4 @@ def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, 
     except Exception as e:
         logger.error(f"Error while running webapp: {e}")
     finally:
-        cleanup_events_queue()
-        cleanup_backups()
-        cleanup_webview()
+        cleanup()

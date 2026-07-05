@@ -210,7 +210,7 @@ class TestUploadFolder:
             handler_instance.upload_folder(local_file, "parent-id")
 
 
-class TestDeleteTrash:
+class TestTrashDelete:
     def test_trash_item(self, handler_instance):
         item = MagicMock()
         handler_instance.drive.CreateFile.side_effect = None
