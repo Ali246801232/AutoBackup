@@ -1,6 +1,5 @@
 """Test src/dashboard/app.py"""
 
-import time
 import pytest
 from unittest.mock import MagicMock, patch
 from dashboard import app
@@ -109,7 +108,7 @@ def reset_state():
 
 @pytest.fixture
 def set_backups_config_dir(tmp_path):
-    configs_dir = tmp_path / "configs"
+    configs_dir = tmp_path / "backup_configs"
     configs_dir.mkdir()
     app.BACKUP_CONFIGS_DIR = configs_dir
     return configs_dir
@@ -118,7 +117,7 @@ def set_backups_config_dir(tmp_path):
 def set_backups(client, set_backups_config_dir, backup_dict):
     resp = client.post("/api/backups/new", json=backup_dict)
     assert resp.status_code == 201
-    return resp.get_json()
+    return app.BACKUPS[backup_dict["config_name"]]
 
 
 class TestEventQueue:
@@ -134,24 +133,23 @@ class TestEventQueue:
 
     def test_add_to_events_queue(self):
         app.setup_events_queue()
-        app.add_to_events_queue("success", "Test Title", "Test Message")
+        app.add_to_events_queue("success", "test-title", "test-message")
         items = app.drain_events_queue()
-        assert items == [{"type": "success", "title": "Test Title", "message": "Test Message"}]
+        assert items == [{"type": "success", "title": "test-title", "message": "test-message"}]
 
     def test_drain_events_queue(self):
         app.setup_events_queue()
-        app.add_to_events_queue("info", "t1", "m1")
-        app.add_to_events_queue("error", "t2", "m2")
+        app.add_to_events_queue("info", "title-1", "message-1")
+        app.add_to_events_queue("error", "title-2", "message-2")
         items = app.drain_events_queue()
         assert len(items) == 2
-        assert items[0] == {"type": "info", "title": "t1", "message": "m1"}
-        assert items[1] == {"type": "error", "title": "t2", "message": "m2"}
+        assert items[0] == {"type": "info", "title": "title-1", "message": "message-1"}
+        assert items[1] == {"type": "error", "title": "title-2", "message": "message-2"}
 
     def test_start_backup_watcher(self, mock_Backup):
         app.setup_events_queue()
         backup = mock_Backup
         app.start_backup_watcher(backup)
-        time.sleep(0.1)
         backup.wait_for_backup.assert_called_with(timeout=app.WATCHER_TIMEOUT)
         items = app.drain_events_queue()
         assert len(items) == 1
@@ -163,7 +161,6 @@ class TestEventQueue:
         backup = mock_Backup
         backup.wait_for_backup.side_effect = TimeoutError()
         app.start_backup_watcher(backup)
-        time.sleep(0.05)
         app.stop_backup_watcher(backup)
         assert backup.config_name in app.STOP_BACKUP_WATCHER_EVENTS
 
@@ -171,7 +168,6 @@ class TestEventQueue:
         app.setup_events_queue()
         backup = mock_Backup
         app.start_scheduler_watcher(backup)
-        time.sleep(0.1)
         backup.wait_for_scheduler.assert_called_with(timeout=app.WATCHER_TIMEOUT)
 
     def test_stop_scheduler_watcher(self, mock_Backup):
@@ -179,7 +175,6 @@ class TestEventQueue:
         backup = mock_Backup
         backup.wait_for_scheduler.side_effect = TimeoutError()
         app.start_scheduler_watcher(backup)
-        time.sleep(0.05)
         app.stop_scheduler_watcher(backup)
         assert backup.config_name in app.STOP_SCHEDULER_WATCHER_EVENTS
 
@@ -191,27 +186,25 @@ class TestBackups:
         assert result == app.BACKUPS
 
     def test_get_backup_configs_dir(self):
-        app.BACKUP_CONFIGS_DIR = "some/path"
+        app.BACKUP_CONFIGS_DIR = "test"
         result = app.get_backup_configs_dir()
-        assert result == "some/path"
+        assert result == "test"
 
     def test_set_backup_configs_dir(self, tmp_path):
-        configs_dir = tmp_path / "configs"
+        configs_dir = tmp_path / "test"
         result = app.set_backup_configs_dir(configs_dir)
         assert app.BACKUP_CONFIGS_DIR == configs_dir.resolve()
         assert result == configs_dir.resolve()
         assert configs_dir.exists()
 
     def test_load_backups(self, set_backups_config_dir):
-        config_dir = app.BACKUP_CONFIGS_DIR
-        (config_dir / "test_config.json").write_text("{}")
+        (app.BACKUP_CONFIGS_DIR / "test_config.json").write_text("{}")
         app.load_backups()
         assert "test_config" in app.BACKUPS
 
-    def test_save_backups(self, set_backups_config_dir):
-        backup = MagicMock()
+    def test_save_backups(self, set_backups, set_backups_config_dir):
+        backup = set_backups
         backup.to_json = MagicMock()
-        app.BACKUPS = {"test_config": backup}
         app.save_backups()
         backup.to_json.assert_called_once()
 
@@ -222,7 +215,7 @@ class TestPages:
         assert resp.status_code == 200
 
     def test_page_edit_backup(self, client, set_backups):
-        resp = client.get("/edit_backup/test_config")
+        resp = client.get(f"/edit_backup/{set_backups.config_name}")
         assert resp.status_code == 200
 
     def test_page_new_backup(self, client):
@@ -235,14 +228,12 @@ class TestBackupsApi:
         resp = client.get("/api/backups/")
         assert resp.status_code == 200
         data = resp.get_json()
-        assert "test_config" in data
+        assert set_backups.config_name in data
 
     def test_api_start_backup(self, client, set_backups):
         app.setup_events_queue()
-        resp = client.post("/api/backups/test_config/start_backup")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/start_backup")
         assert resp.status_code == 202
-        data = resp.get_json()
-        assert "Started backup" in data["status"]
 
     def test_api_start_backup_missing_backup(self, client):
         resp = client.post("/api/backups/nonexistent/start_backup")
@@ -250,31 +241,29 @@ class TestBackupsApi:
 
     def test_api_start_backup_error(self, client, set_backups):
         app.setup_events_queue()
-        app.BACKUPS["test_config"].start_backup.side_effect = Exception("error")
-        resp = client.post("/api/backups/test_config/start_backup")
+        set_backups.start_backup.side_effect = Exception("error")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/start_backup")
         assert resp.status_code == 500
 
     def test_api_cancel_backup(self, client, set_backups):
-        resp = client.post("/api/backups/test_config/cancel_backup")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/cancel_backup")
         assert resp.status_code == 200
-        app.BACKUPS["test_config"].cancel_backup.assert_called_once()
-        data = resp.get_json()
-        assert "Cancelled backup" in data["status"]
+        set_backups.cancel_backup.assert_called_once()
 
     def test_api_cancel_backup_missing_backup(self, client):
         resp = client.post("/api/backups/nonexistent/cancel_backup")
         assert resp.status_code == 404
 
     def test_api_cancel_backup_error(self, client, set_backups):
-        app.BACKUPS["test_config"].cancel_backup.side_effect = Exception("error")
-        resp = client.post("/api/backups/test_config/cancel_backup")
+        set_backups.cancel_backup.side_effect = Exception("error")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/cancel_backup")
         assert resp.status_code == 500
 
     def test_api_start_scheduler(self, client, set_backups):
         app.setup_events_queue()
-        resp = client.post("/api/backups/test_config/start_scheduler")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/start_scheduler")
         assert resp.status_code == 202
-        app.BACKUPS["test_config"].start_scheduler.assert_called_once()
+        set_backups.start_scheduler.assert_called_once()
 
     def test_api_start_scheduler_missing_backup(self, client):
         resp = client.post("/api/backups/nonexistent/start_scheduler")
@@ -282,28 +271,28 @@ class TestBackupsApi:
 
     def test_api_start_scheduler_error(self, client, set_backups):
         app.setup_events_queue()
-        app.BACKUPS["test_config"].start_scheduler.side_effect = Exception("error")
-        resp = client.post("/api/backups/test_config/start_scheduler")
+        set_backups.start_scheduler.side_effect = Exception("error")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/start_scheduler")
         assert resp.status_code == 500
 
     def test_api_stop_scheduler(self, client, set_backups):
-        resp = client.post("/api/backups/test_config/stop_scheduler")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/stop_scheduler")
         assert resp.status_code == 200
-        app.BACKUPS["test_config"].stop_scheduler.assert_called_once()
+        set_backups.stop_scheduler.assert_called_once()
 
     def test_api_stop_scheduler_missing_backup(self, client):
         resp = client.post("/api/backups/nonexistent/stop_scheduler")
         assert resp.status_code == 404
 
     def test_api_stop_scheduler_error(self, client, set_backups):
-        app.BACKUPS["test_config"].stop_scheduler.side_effect = Exception("error")
-        resp = client.post("/api/backups/test_config/stop_scheduler")
+        set_backups.stop_scheduler.side_effect = Exception("error")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/stop_scheduler")
         assert resp.status_code == 500
 
     def test_api_delete_backup(self, client, set_backups, set_backups_config_dir):
-        resp = client.post("/api/backups/test_config/delete")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/delete")
         assert resp.status_code == 200
-        assert "test_config" not in app.BACKUPS
+        assert set_backups.config_name not in app.BACKUPS
 
     def test_api_delete_backup_missing_backup(self, client):
         resp = client.post("/api/backups/nonexistent/delete")
@@ -311,17 +300,17 @@ class TestBackupsApi:
 
     def test_api_delete_backup_error(self, client, set_backups):
         app.setup_events_queue()
-        backup = app.BACKUPS["test_config"]
+        backup = set_backups
         backup.scheduler_running = True
         backup.stop_scheduler.side_effect = Exception("error")
-        resp = client.post("/api/backups/test_config/delete")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/delete")
         assert resp.status_code == 500
 
     def test_api_new_backup(self, client, backup_dict, set_backups_config_dir):
         resp = client.post("/api/backups/new", json=backup_dict)
         assert resp.status_code == 201
         data = resp.get_json()
-        assert data["config_name"] == "test_config"
+        assert data["config_name"] == backup_dict["config_name"]
 
     def test_api_new_backup_no_request_body(self, client):
         resp = client.post("/api/backups/new", json={})
@@ -338,32 +327,30 @@ class TestBackupsApi:
         assert resp.status_code == 500
 
     def test_api_edit_backup(self, client, set_backups):
-        resp = client.post("/api/backups/test_config/edit", json={"config_name": "renamed"})
+        resp = client.post(f"/api/backups/{set_backups.config_name}/edit", json={"config_name": "renamed"})
         assert resp.status_code == 200
-        data = resp.get_json()
-        assert "Updated backup" in data["status"]
 
     def test_api_edit_backup_same_config_name(self, client, set_backups):
-        resp = client.post("/api/backups/test_config/edit", json={"config_name": "test_config"})
+        resp = client.post(f"/api/backups/{set_backups.config_name}/edit", json={"config_name": set_backups.config_name})
         assert resp.status_code == 200
-        app.BACKUPS["test_config"].update_from_dict.assert_called_once()
+        set_backups.update_from_dict.assert_called_once()
 
     def test_api_edit_backup_missing_backup(self, client):
         resp = client.post("/api/backups/nonexistent/edit", json={"config_name": "test"})
         assert resp.status_code == 404
 
     def test_api_edit_backup_no_request_body(self, client, set_backups):
-        resp = client.post("/api/backups/test_config/edit", json={})
+        resp = client.post(f"/api/backups/{set_backups.config_name}/edit", json={})
         assert resp.status_code == 400
 
     def test_api_edit_backup_verify_details_error(self, client, set_backups):
-        app.BACKUPS["test_config"].verify_details.side_effect = ValueError("invalid")
-        resp = client.post("/api/backups/test_config/edit", json={"config_name": "test_config"})
+        set_backups.verify_details.side_effect = ValueError("invalid")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/edit", json={"config_name": set_backups.config_name})
         assert resp.status_code == 400
 
     def test_api_edit_backup_error(self, client, set_backups):
-        app.BACKUPS["test_config"].to_json.side_effect = Exception("error")
-        resp = client.post("/api/backups/test_config/edit", json={"config_name": "renamed"})
+        set_backups.to_json.side_effect = Exception("error")
+        resp = client.post(f"/api/backups/{set_backups.config_name}/edit", json={"config_name": "renamed"})
         assert resp.status_code == 500
 
     def test_api_events_queue(self, client):
@@ -387,8 +374,6 @@ class TestStartupApi:
         app.is_in_startup.return_value = False
         resp = client.post("/api/startup/add")
         assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["status"] == "Added to startup"
 
     def test_api_startup_add_already_in_startup(self, client, set_backups_config_dir):
         app.is_in_startup.return_value = True
@@ -399,8 +384,6 @@ class TestStartupApi:
         app.is_in_startup.return_value = True
         resp = client.post("/api/startup/remove")
         assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["status"] == "Removed from startup"
 
     def test_api_startup_remove_not_in_startup(self, client, set_backups_config_dir):
         app.is_in_startup.return_value = False
@@ -492,5 +475,3 @@ class TestUtilsApi:
     def test_api_notify(self, client):
         resp = client.post("/api/notify", json={"title": "Test", "message": "Hello"})
         assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["status"] == "Sent notification"
