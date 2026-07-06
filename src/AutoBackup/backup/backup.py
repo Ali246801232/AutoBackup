@@ -243,9 +243,12 @@ class Backup:
                 destination_paths.append(destination.joinpath(*destination_parts))
             return destination_paths
 
-        if common_path.name == "":  # no common parent, must be Windows due to different drives
-            drive_letter = common_path.drive[0]
-            parent_name = f"Drive {drive_letter}"
+        if common_path.name == "":
+            if common_path.drive:
+                drive_letter = common_path.drive.rstrip(':')
+                parent_name = f"Drive {drive_letter}"
+            else:
+                parent_name = "root"
         else:
             parent_name = common_path.name
 
