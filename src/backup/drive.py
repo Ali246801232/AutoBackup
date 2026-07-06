@@ -38,7 +38,7 @@ class DriveHandler:
     def authenticate(self):
         """Authenticate using saved credentials, otherwise with local web server."""
         try:
-            client_config_file = SCRIPT_DIR / "client_secrets.json"
+            client_config_file = SCRIPT_DIR / "client_secret.json"
             credentials_file = SCRIPT_DIR / "credentials.json"
 
             self.gauth = GoogleAuth(settings={
@@ -51,7 +51,7 @@ class DriveHandler:
             })
 
             if not client_config_file.exists():
-                raise RuntimeError("No client_secrets.json found in script directory")        
+                raise RuntimeError("No client_secret.json found in script directory")        
 
             if credentials_file.exists():
                 self.gauth.LoadCredentialsFile()

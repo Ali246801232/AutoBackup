@@ -44,7 +44,7 @@ def script_dir(tmp_path):
     """Patch SCRIPT_DIR and create empty JSON config files."""
     scripts_dir = tmp_path / "script_dir"
     scripts_dir.mkdir()
-    (scripts_dir / "client_secrets.json").write_text("{}")
+    (scripts_dir / "client_secret.json").write_text("{}")
     (scripts_dir / "credentials.json").write_text("{}")
     with patch("backup.drive.SCRIPT_DIR", scripts_dir):
         yield scripts_dir

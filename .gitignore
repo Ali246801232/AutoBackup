@@ -226,7 +226,6 @@ __marimo__/
 *.vsix
 
 # Project-specific
-client_secrets.json
 credentials.json
 manual_testing/
 logs/

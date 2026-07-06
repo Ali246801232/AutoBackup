@@ -5,7 +5,7 @@ A desktop application made with Python for automated backups with optional Googl
 
 ## Overview
 
-AutoBackup lets you define backup configs to use. Each config requires a name, one or more source paths, and a destination directory. Optionally, it may also specify paths to exclude, a schedule for recurring backups (requires adding to startup), and an option to upload to a Google Drive folder (requires [some setup](#google-drive-setup)).
+AutoBackup lets you define backup configs to use. Each config requires a name, one or more source paths, and a destination directory. Optionally, it may also specify paths to exclude, a schedule for recurring backups (requires adding to startup), and an option to upload to a Google Drive folder.
 
 The application runs as a desktop application with a system tray icon and provides a [Flask](https://flask.palletsprojects.com/) webapp for the dashboard that runs in a [pywebview](https://pywebview.flowrl.com/) window for managing backup configs.
 
@@ -49,25 +49,6 @@ The application runs as a desktop application with a system tray icon and provid
 
 > [!NOTE]
 > Scheduling is only supported for Windows, Linux, and macOS.
-
-## Google Drive Setup
-
-To allow Google Drive uploads, you will need a `client_secrets.json` file to allow the app to access the Google Drive API and upload files. To do this, follow these steps:
-
-1. Go to the [Google Cloud console](https://console.cloud.google.com/) and select a project you've made or create a new project.
-
-2. Enable the [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com) for your project.
-
-3. Configure your project's [OAuth consent screen](https://console.cloud.google.com/auth/overview) by following the instructions on the page.
-
-4. On the [credentials page](https://console.cloud.google.com/apis/credentials), click "Create credentials" and then "OAuth client ID":
-    1. Select "Web application" for *Application type*.
-    2. Enter an appropriate *Name*.
-    3. Add `http://localhost:8080/` to *Authorized redirect URIs*.
-    4. Click *Create*.
-    5. On the *OAuth client created* window, scroll down and click *Download JSON*.
-
-5. Rename the downloaded file to `client_secrets.json` and place it in [`src/backup/`](src/backup/).
 
 
 ## Dashboard
