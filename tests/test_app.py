@@ -226,7 +226,7 @@ class TestPages:
 
 class TestBackupsApi:
     def test_api_backups(self, client, set_backups):
-        resp = client.get("/api/backups/")
+        resp = client.get("/api/backups")
         assert resp.status_code == 200
         data = resp.get_json()
         assert set_backups.config_name in data

@@ -60,12 +60,12 @@
             </div>
             <div class="schedule-row form-row" id="schedule-row">
                 <label class="form-label" for="schedule-count">Every</label>
-                <input type="number" id="schedule-count" class="form-input" min="1" placeholder="e.g. 2" value="{% if config_data and config_data.schedule %}{{ config_data.schedule.count }}{% else %}1{% endif %}">
+                <input type="number" id="schedule-count" class="form-input" min="1" value="{% if config_data and config_data.schedule %}{{ config_data.schedule.count }}{% else %}1{% endif %}">
                 <select id="schedule-unit" class="form-select">
                     <option value="seconds" {% if config_data and config_data.schedule and config_data.schedule.unit == 'seconds' %}selected{% endif %}>Seconds</option>
                     <option value="minutes" {% if config_data and config_data.schedule and config_data.schedule.unit == 'minutes' %}selected{% endif %}>Minutes</option>
                     <option value="hours" {% if config_data and config_data.schedule and config_data.schedule.unit == 'hours' %}selected{% endif %}>Hours</option>
-                    <option value="days" {% if not config_data or config_data.schedule and config_data.schedule.unit == 'days' %}selected{% endif %}>Days</option>
+                    <option value="days" {% if config_data and config_data.schedule and config_data.schedule.unit == 'days' %}selected{% endif %}>Days</option>
                     <option value="weeks" {% if config_data and config_data.schedule and config_data.schedule.unit == 'weeks' %}selected{% endif %}>Weeks</option>
                     <option value="months" {% if config_data and config_data.schedule and config_data.schedule.unit == 'months' %}selected{% endif %}>Months</option>
                     <option value="years" {% if config_data and config_data.schedule and config_data.schedule.unit == 'years' %}selected{% endif %}>Years</option>

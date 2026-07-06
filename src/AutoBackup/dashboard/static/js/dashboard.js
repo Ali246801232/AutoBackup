@@ -180,7 +180,7 @@
         if (polling) return;
         polling = true;
 
-        apiCall("/api/backups/", "GET")
+        apiCall("/api/backups", "GET")
             .then(function(data) {
                 renderCards(data, searchInput.value);
                 lastBackups = data;

@@ -193,7 +193,7 @@ def page_new_backup():
     return render_template("config_form.html")
 
 
-@app.route("/api/backups/")
+@app.route("/api/backups")
 def api_backups():
     backups = {}
     try:
