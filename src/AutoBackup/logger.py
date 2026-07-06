@@ -1,9 +1,23 @@
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
 
 log_dir = Path(__file__).resolve().parent.parent / "logs"
 log_dir.mkdir(parents=True, exist_ok=True)
+
+
+MAX_LOG_AGE = timedelta(days=30)
+now = datetime.now(timezone.utc)
+for f in log_dir.iterdir():
+    if f.is_file() and f.suffix == ".log":
+        try:
+            file_dt = datetime.fromtimestamp(f.stat().st_birthtime, tz=timezone.utc)
+        except AttributeError:
+            continue
+        if now - file_dt > MAX_LOG_AGE:
+            f.unlink()
+
 
 log_file = log_dir / f"{datetime.now():%Y-%m-%d_%H-%M-%S}.log"
 

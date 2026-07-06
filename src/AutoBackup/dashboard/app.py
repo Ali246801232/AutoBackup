@@ -357,8 +357,8 @@ def api_edit_backup(config_name):
 
         backup.to_json(config_file)
 
-        logger.info(f"Updated backup for \"{config_name}\"" + (f"to {new_name}" if new_name else ""))
-        return jsonify({"status": f"Updated backup for \"{config_name}\"" + (f"to {new_name}" if new_name else "")}), 200
+        logger.info(f"Updated backup for \"{config_name}\"" + (f" to {new_name}" if new_name != old_name else ""))
+        return jsonify({"status": f"Updated backup for \"{config_name}\"" + (f" to {new_name}" if new_name != old_name else "")}), 200
     except HTTPException:
         raise
     except Exception as e:
