@@ -48,7 +48,8 @@ def setup_events_queue():
             start_scheduler_watcher(backup)
 
 def cleanup_events_queue():
-    GLOBAL_STOP_WATCHING_EVENT.set()
+    if GLOBAL_STOP_WATCHING_EVENT:
+        GLOBAL_STOP_WATCHING_EVENT.set()
     for watcher in BACKUP_WATCHERS.values(): watcher.join()
     for watcher in SCHEDULER_WATCHERS.values(): watcher.join()
     drain_events_queue()
@@ -58,7 +59,7 @@ def add_to_events_queue(type: str = "info", title: str = "AutoBackup", message: 
 
 def drain_events_queue() -> list:
     items = []
-    while not EVENTS_QUEUE.empty():
+    while EVENTS_QUEUE and not EVENTS_QUEUE.empty():
         try:
             items.append(EVENTS_QUEUE.get_nowait())
         except Empty:

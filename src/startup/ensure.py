@@ -6,8 +6,16 @@ from .logger import logger
 
 system = platform.system()
 
-STARTUP_SCRIPT = (Path(__file__).resolve().parent / "startup.py").resolve()
-COMMAND = [sys.executable, STARTUP_SCRIPT]
+COMMAND = [sys.executable, "-m", "startup.startup"]
+COMMAND_STRING = " ".join(f"\"{c}\"" for c in COMMAND)
+def COMMAND_XML(indent: int = 0) -> str:
+    base = " " * (indent * 4)
+    inner = " " * ((indent + 1) * 4)
+    lines = [f'{base}<array>']
+    for c in COMMAND:
+        lines.append(f'{inner}<string>{c}</string>')
+    lines.append(f'{base}</array>')
+    return '\n'.join(lines)
 
 
 def ensure_startup_entry():
@@ -44,7 +52,7 @@ def _ensure_startup_windows():
     )
     winreg.SetValueEx(
         key, REGISTRY_VALUE_NAME, 0, winreg.REG_SZ,
-        f"\"{COMMAND[0]}\" \"{COMMAND[1]}\""
+        COMMAND_STRING
     )
     winreg.CloseKey(key)
 
@@ -71,7 +79,7 @@ def _ensure_startup_linux():
         "[Desktop Entry]\n"
         "Type=Application\n"
         "Name=AutoBackup\n"
-        f"Exec=\"{COMMAND[0]}\" \"{COMMAND[1]}\"\n"
+       f"Exec={COMMAND_STRING}\n"
         "Terminal=false\n"
         "X-GNOME-Autostart-enabled=true\n"
     )
@@ -89,27 +97,24 @@ LAUNCH_AGENT_LOG = LAUNCH_AGENT_DIR / "autobackup.log"
 def _ensure_startup_macos():
     LAUNCH_AGENT_DIR.mkdir(parents=True, exist_ok=True)
     plist_content = (
-         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-         "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
-         "<plist version=\"1.0\">\n"
-         "<dict>\n"
-         "    <key>Label</key>\n"
-        f"    <string>{PLIST_LABEL}</string>\n"
-         "    <key>ProgramArguments</key>\n"
-         "    <array>\n"
-        f"        <string>{COMMAND[0]}</string>\n"
-        f"        <string>{COMMAND[1]}</string>\n"
-         "    </array>\n"
-         "    <key>RunAtLoad</key>\n"
-         "    <true/>\n"
-         "    <key>KeepAlive</key>\n"
-         "    <false/>\n"
-         "    <key>StandardOutPath</key>\n"
-        f"    <string>{LAUNCH_AGENT_LOG}</string>\n"
-         "    <key>StandardErrorPath</key>\n"
-        f"    <string>{LAUNCH_AGENT_LOG}</string>\n"
-         "</dict>\n"
-         "</plist>"
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+        "<plist version=\"1.0\">\n"
+        "<dict>\n"
+        "    <key>Label</key>\n"
+       f"    <string>{PLIST_LABEL}</string>\n"
+        "    <key>ProgramArguments</key>\n"
+       f"{COMMAND_XML(indent=1)}\n"
+        "    <key>RunAtLoad</key>\n"
+        "    <true/>\n"
+        "    <key>KeepAlive</key>\n"
+        "    <false/>\n"
+        "    <key>StandardOutPath</key>\n"
+       f"    <string>{LAUNCH_AGENT_LOG}</string>\n"
+        "    <key>StandardErrorPath</key>\n"
+       f"    <string>{LAUNCH_AGENT_LOG}</string>\n"
+        "</dict>\n"
+        "</plist>"
     )
     LAUNCH_AGENT_FILE.write_text(plist_content, encoding="utf-8")
 

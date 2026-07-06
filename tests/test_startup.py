@@ -207,7 +207,7 @@ class TestEnsureStartupEntry:
             "AutoBackup",
             0,
             mock_winreg.REG_SZ,
-            f'"{ensure.COMMAND[0]}" "{ensure.COMMAND[1]}"',
+            ensure.COMMAND_STRING,
         )
         mock_winreg.CloseKey.assert_called_once_with(key)
 
@@ -219,7 +219,7 @@ class TestEnsureStartupEntry:
             "[Desktop Entry]\n"
             "Type=Application\n"
             "Name=AutoBackup\n"
-            f"Exec=\"{ensure.COMMAND[0]}\" \"{ensure.COMMAND[1]}\"\n"
+           f"Exec={ensure.COMMAND_STRING}\n"
             "Terminal=false\n"
             "X-GNOME-Autostart-enabled=true\n"
         )
@@ -230,28 +230,24 @@ class TestEnsureStartupEntry:
         assert ensure.LAUNCH_AGENT_DIR.is_dir()
         content = ensure.LAUNCH_AGENT_FILE.read_text(encoding="utf-8")
         expected = (
-            '<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
-            '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
-            '<plist version="1.0">\n'
-            '<dict>\n'
-            '    <key>Label</key>\n'
-            '    <string>com.autobackup.startup</string>\n'
-            '    <key>ProgramArguments</key>\n'
-            '    <array>\n'
-            f'        <string>{ensure.COMMAND[0]}</string>\n'
-            f'        <string>{ensure.COMMAND[1]}</string>\n'
-            '    </array>\n'
-            '    <key>RunAtLoad</key>\n'
-            '    <true/>\n'
-            '    <key>KeepAlive</key>\n'
-            '    <false/>\n'
-            '    <key>StandardOutPath</key>\n'
-            f'    <string>{ensure.LAUNCH_AGENT_LOG}</string>\n'
-            '    <key>StandardErrorPath</key>\n'
-            f'    <string>{ensure.LAUNCH_AGENT_LOG}</string>\n'
-            '</dict>\n'
-            '</plist>'
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+            "<plist version=\"1.0\">\n"
+            "<dict>\n"
+            "    <key>Label</key>\n"
+           f"    <string>{ensure.PLIST_LABEL}</string>\n"
+            "    <key>ProgramArguments</key>\n"
+           f"{ensure.COMMAND_XML(indent=1)}\n"
+            "    <key>RunAtLoad</key>\n"
+            "    <true/>\n"
+            "    <key>KeepAlive</key>\n"
+            "    <false/>\n"
+            "    <key>StandardOutPath</key>\n"
+           f"    <string>{ensure.LAUNCH_AGENT_LOG}</string>\n"
+            "    <key>StandardErrorPath</key>\n"
+           f"    <string>{ensure.LAUNCH_AGENT_LOG}</string>\n"
+            "</dict>\n"
+            "</plist>"
         )
         assert content == expected
 

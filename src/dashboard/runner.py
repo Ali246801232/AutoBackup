@@ -152,7 +152,7 @@ def run_app(backup_configs_dir: str|Path = None, start_schedulers: bool = None, 
         start_minimized = False
 
     try:
-        setup()
+        setup(backup_configs_dir, start_schedulers, start_minimized)
         TRAY_ICON.run_detached()
 
         logger.info("Running webapp")
