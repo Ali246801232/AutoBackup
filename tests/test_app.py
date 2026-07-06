@@ -16,7 +16,7 @@ def client():
 def mock_create_file_dialog():
     window = MagicMock()
     window.create_file_dialog.return_value = "/selected/path"
-    with patch.object(app.webview, "windows", [window]):
+    with patch.object(app.webview, "create_window", return_value=window):
         yield window.create_file_dialog
 
 @pytest.fixture(autouse=True)
