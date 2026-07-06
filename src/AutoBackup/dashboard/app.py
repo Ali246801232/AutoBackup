@@ -498,10 +498,12 @@ def api_file_dialog():
             kwargs = {"directory": initial_path}
 
     try:
+        window = webview.create_window("AutoBackup File Dialog", hidden=True)
         if dialog_type == "file":
-            result = webview.windows[0].create_file_dialog(webview.FileDialog.OPEN, **kwargs)
+            result = window.create_file_dialog(webview.FileDialog.OPEN, **kwargs)
         else:
-            result = webview.windows[0].create_file_dialog(webview.FileDialog.FOLDER, **kwargs)
+            result = window.create_file_dialog(webview.FileDialog.FOLDER, **kwargs)
+        window.destroy()
     except Exception as e:
         logger.error(f"Error while using file dialog: {e}")
         return jsonify({"error": f"Error while using file dialog: {e}"}), 500
