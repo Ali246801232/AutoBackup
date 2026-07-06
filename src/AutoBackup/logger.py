@@ -12,7 +12,7 @@ now = datetime.now(timezone.utc)
 for f in log_dir.iterdir():
     if f.is_file() and f.suffix == ".log":
         try:
-            file_dt = datetime.fromtimestamp(f.stat().st_birthtime, tz=timezone.utc)
+            file_dt = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
         except AttributeError:
             continue
         if now - file_dt > MAX_LOG_AGE:

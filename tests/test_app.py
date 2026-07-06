@@ -199,9 +199,11 @@ class TestBackups:
 
     def test_load_backups(self, set_backups_config_dir, backup_dict):
         config_name = backup_dict["config_name"]
-        (app.BACKUP_CONFIGS_DIR / f"{config_name}.json").write_text("{}")
+        (app.BACKUP_CONFIGS_DIR / f"{config_name}.json").write_text(
+            "{\"config_name\": \"test_config\", \"sources\": [], \"destination\": \"/tmp\"}"
+        )
         app.load_backups()
-        assert config_name in app.BACKUPS
+        assert "test_config" in app.BACKUPS
 
     def test_save_backups(self, set_backups, set_backups_config_dir):
         backup = set_backups

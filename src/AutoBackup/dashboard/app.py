@@ -1,3 +1,4 @@
+import re
 import sys
 import webview
 import threading
@@ -156,8 +157,12 @@ def set_backup_configs_dir(dir_path: str | Path = None) -> Path:
     BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
     return BACKUP_CONFIGS_DIR
 
+def sanitize_config_name(name: str) -> str:
+    safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
+    safe = safe.strip('. ')
+    return safe or "unnamed"
+
 def load_backups():
-    """Load the dictionary of backups from the directory of config JSONs."""
     global BACKUP_CONFIGS_DIR, BACKUPS
     BACKUPS = {}
     if not (BACKUP_CONFIGS_DIR.exists() and BACKUP_CONFIGS_DIR.is_dir()):
@@ -165,15 +170,17 @@ def load_backups():
     for config_file in BACKUP_CONFIGS_DIR.iterdir():
         if not (config_file.is_file() and config_file.suffix == ".json"):
             continue
-        BACKUPS[config_file.stem] = Backup.from_json(config_file)
+        backup = Backup.from_json(config_file)
+        if backup.config_name:
+            BACKUPS[backup.config_name] = backup
 
 def save_backups():
-    """Save the dictionary of backups to the directory as config JSONs."""
     global BACKUPS, BACKUP_CONFIGS_DIR
     if not (BACKUP_CONFIGS_DIR.exists() and BACKUP_CONFIGS_DIR.is_dir()):
         raise ValueError(f"No config files directory at {BACKUP_CONFIGS_DIR.absolute()}")
-    for config_name, backup in BACKUPS.items():
-        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
+    for backup in BACKUPS.values():
+        json_name = sanitize_config_name(backup.config_name)
+        config_file = BACKUP_CONFIGS_DIR / f"{json_name}.json"
         backup.to_json(config_file)
 
 
@@ -283,9 +290,10 @@ def api_delete_backup(config_name):
         if backup.backup_running:
             backup.cancel_backup()
 
-        del BACKUPS[config_name]
+        del BACKUPS[backup.config_name]
 
-        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
+        json_name = sanitize_config_name(backup.config_name)
+        config_file = BACKUP_CONFIGS_DIR / f"{json_name}.json"
         config_file.unlink(missing_ok=True)
         
         stop_backup_watcher(backup)
@@ -315,11 +323,12 @@ def api_new_backup():
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
 
-        BACKUPS[config_name] = backup
-        config_file = BACKUP_CONFIGS_DIR / f"{config_name}.json"
+        BACKUPS[backup.config_name] = backup
+        json_name = sanitize_config_name(backup.config_name)
+        config_file = BACKUP_CONFIGS_DIR / f"{json_name}.json"
         backup.to_json(config_file)
 
-        logger.info(f"Created backup: {config_name}")
+        logger.info(f"Created backup: {backup.config_name}")
         return jsonify(backup.to_dict()), 201
     except Exception as e:
         logger.error(f"Failed to create backup: {e}")
@@ -352,8 +361,9 @@ def api_edit_backup(config_name):
             return jsonify({"error": str(e)}), 400
 
         if new_name != old_name:
-            (BACKUP_CONFIGS_DIR / f"{old_name}.json").unlink(missing_ok=True)
-        config_file = BACKUP_CONFIGS_DIR / f"{new_name}.json"
+            (BACKUP_CONFIGS_DIR / f"{sanitize_config_name(old_name)}.json").unlink(missing_ok=True)
+        json_name = sanitize_config_name(backup.config_name)
+        config_file = BACKUP_CONFIGS_DIR / f"{json_name}.json"
 
         backup.to_json(config_file)
 
