@@ -331,19 +331,24 @@ def api_edit_backup(config_name):
     if not backup:
         abort(404, f"No backup found for \"{config_name}\"")
 
+    data = request.get_json() or {}
+    if not data:
+        return jsonify({"error": "Request body is empty"}), 400
+
     old_config = backup.to_dict()
     old_name = backup.config_name
-    new_name = old_name
+    new_config = data
+    new_name = new_config.get("config_name", old_name)
     try:
-        new_config = request.get_json() or {}
-        new_name = new_config.get("config_name", old_name)
-
         if new_name != old_name and new_name in BACKUPS:
             abort(409, f"A backup with the name {new_name} already exists")
-
         BACKUPS[new_name] = BACKUPS.pop(old_name)
-        backup.update_from_dict(new_config)
-        backup.verify_details()
+
+        try:
+            backup.update_from_dict(data)
+            backup.verify_details()
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
         if new_name != old_name:
             (BACKUP_CONFIGS_DIR / f"{old_name}.json").unlink(missing_ok=True)
@@ -372,6 +377,73 @@ def api_events_queue():
     except Exception as e:
         logger.error("Failed to fetch items from events queue")
         return jsonify({"error": "Failed to fetch items from events queue"}), 500
+
+
+@app.route("/api/drive/auth", methods=["POST"])
+def api_drive_auth():
+    global DRIVE_BROWSER
+
+    try:
+        handler = DRIVE_BROWSER
+        handler.authenticate()
+        handler.go_to_root()
+
+        logger.info(f"Authenticated for Drive browser")
+        return jsonify({
+            "folder_id": handler.current_folder["id"],
+            "folder_name": handler.current_folder["title"]
+        })
+    except Exception as e:
+        logger.error(f"Error authenticating for Drive browser: {e}")
+        return jsonify({"error": f"Error authenticating for Drive browser: {e}"}), 500
+
+@app.route("/api/drive/browse", methods=["POST"])
+def api_drive_browse():
+    global DRIVE_BROWSER
+
+    data = request.get_json() or {}
+    folder_id = data.get("folder_id")
+    handler = DRIVE_BROWSER
+    if not handler:
+        return jsonify({"error": "Google Drive not authenticated"}), 401
+
+    try:
+        if folder_id:
+            handler.open_folder(folder_id)
+        children = handler.get_child_folders()
+
+        logger.info(f"Opened folder {folder_id} in Drive browser")
+        return jsonify({
+            "folder_id": handler.current_folder["id"],
+            "folder_name": handler.current_folder["title"],
+            "children": [{"id": c["id"], "name": c["title"]} for c in children]
+        })
+    except Exception as e:
+        logger.error(f"Error opening folder {folder_id} in Drive browser: {e}")
+        return jsonify({"error": f"Error opening folder {folder_id} in Drive browser: {e}"}), 500
+
+@app.route("/api/drive/up", methods=["POST"])
+def api_drive_up():
+    global DRIVE_BROWSER
+
+
+    handler = DRIVE_BROWSER
+    if not handler:
+        return jsonify({"error": "Google Drive is not authenticated"}), 401
+
+    try:
+        handler.go_up()
+        children = handler.get_child_folders()
+
+        logger.info("Opened parent in Drive browser")
+        return jsonify({
+            "folder_id": handler.current_folder["id"],
+            "folder_name": handler.current_folder["title"],
+            "children": [{"id": c["id"], "name": c["title"]} for c in children]
+        })
+    except Exception as e:
+        logger.error(f"Error navigating to parent in Drive browser: {e}")
+        return jsonify({"error": f"Error navigating to parent in Drive browser: {e}"}), 500
 
 
 @app.route("/api/startup/status")
@@ -441,73 +513,6 @@ def api_file_dialog():
     logger.info(f"Got {result} from file dialog")
     return jsonify({"path": str(result)})
 
-
-@app.route("/api/drive/auth", methods=["POST"])
-def api_drive_auth():
-    global DRIVE_BROWSER
-
-
-    try:
-        handler = DRIVE_BROWSER
-        handler.authenticate()
-        handler.go_to_root()
-
-        logger.info(f"Authenticated for Drive browser")
-        return jsonify({
-            "folder_id": handler.current_folder["id"],
-            "folder_name": handler.current_folder["title"]
-        })
-    except Exception as e:
-        logger.error(f"Error authenticating for Drive browser: {e}")
-        return jsonify({"error": f"Error authenticating for Drive browser: {e}"}), 500
-
-@app.route("/api/drive/browse", methods=["POST"])
-def api_drive_browse():
-    global DRIVE_BROWSER
-
-    data = request.get_json() or {}
-    folder_id = data.get("folder_id")
-    handler = DRIVE_BROWSER
-    if not handler:
-        return jsonify({"error": "Google Drive not authenticated"}), 401
-
-    try:
-        if folder_id:
-            handler.open_folder(folder_id)
-        children = handler.get_child_folders()
-
-        logger.info(f"Opened folder {folder_id} in Drive browser")
-        return jsonify({
-            "folder_id": handler.current_folder["id"],
-            "folder_name": handler.current_folder["title"],
-            "children": [{"id": c["id"], "name": c["title"]} for c in children]
-        })
-    except Exception as e:
-        logger.error(f"Error opening folder {folder_id} in Drive browser: {e}")
-        return jsonify({"error": f"Error opening folder {folder_id} in Drive browser: {e}"}), 500
-
-@app.route("/api/drive/up", methods=["POST"])
-def api_drive_up():
-    global DRIVE_BROWSER
-
-
-    handler = DRIVE_BROWSER
-    if not handler:
-        return jsonify({"error": "Google Drive is not authenticated"}), 401
-
-    try:
-        handler.go_up()
-        children = handler.get_child_folders()
-
-        logger.info("Opened parent in Drive browser")
-        return jsonify({
-            "folder_id": handler.current_folder["id"],
-            "folder_name": handler.current_folder["title"],
-            "children": [{"id": c["id"], "name": c["title"]} for c in children]
-        })
-    except Exception as e:
-        logger.error(f"Error navigating to parent in Drive browser: {e}")
-        return jsonify({"error": f"Error navigating to parent in Drive browser: {e}"}), 500
 
 @app.route("/api/notify", methods=["POST"])
 def api_notify():

@@ -13,10 +13,10 @@ COMMAND = [sys.executable, STARTUP_SCRIPT]
 def ensure_startup_entry():
     if system == "Windows":
         _ensure_startup_windows()
-    elif system == "Darwin":
-        _ensure_startup_macos()
     elif system == "Linux":
         _ensure_startup_linux()
+    elif system == "Darwin":
+        _ensure_startup_macos()
     else:
         raise NotImplementedError(f"Unsupported OS: {system}")
     logger.debug("Created/ensured startup entry")
@@ -24,10 +24,10 @@ def ensure_startup_entry():
 def remove_startup_entry():
     if system == "Windows":
         _remove_startup_windows()
-    elif system == "Darwin":
-        _remove_startup_macos()
     elif system == "Linux":
         _remove_startup_linux()
+    elif system == "Darwin":
+        _remove_startup_macos()
     else:
         raise NotImplementedError(f"Unsupported OS: {system}")
     logger.debug("Removed startup entry")

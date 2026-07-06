@@ -7,8 +7,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 import pytest
-from backup.backup import Backup, _schedule_to_timedelta
-from backup.utils import CancelledError
+from backup import backup
 
 
 @pytest.fixture
@@ -38,7 +37,7 @@ def tmp_exclusion(tmp_source):
 
 @pytest.fixture
 def backup_instance(tmp_source, tmp_destination, tmp_exclusion):
-    return Backup(
+    return backup.Backup(
         config_name="test_backup",
         sources=[tmp_source],
         destination=tmp_destination,
@@ -77,7 +76,7 @@ class TestSerialization:
     def test_from_dict(self, backup_dict, tmp_source, tmp_destination, tmp_exclusion):
         backup_dict["last_scheduled_attempt"] = "2025-06-01T12:00:00"
         d = backup_dict
-        b = Backup.from_dict(d)
+        b = backup.Backup.from_dict(d)
         assert b.config_name == "test_backup"
         assert b.sources == [tmp_source.resolve()]
         assert b.destination == tmp_destination.resolve()
@@ -89,7 +88,7 @@ class TestSerialization:
 
     def test_roundtrip(self, backup_instance):
         d = backup_instance.to_dict()
-        b = Backup.from_dict(d)
+        b = backup.Backup.from_dict(d)
         assert b.config_name == backup_instance.config_name
         assert b.sources == backup_instance.sources
         assert b.destination == backup_instance.destination
@@ -101,7 +100,7 @@ class TestSerialization:
     def test_json_roundtrip(self, backup_instance, tmp_path):
         f = tmp_path / "config.json"
         backup_instance.to_json(f)
-        b = Backup.from_json(f)
+        b = backup.Backup.from_json(f)
         assert b.to_dict() == backup_instance.to_dict()
 
     def test_update_from_dict(self, backup_instance, tmp_path, tmp_source, tmp_destination):
@@ -279,15 +278,15 @@ class TestStatus:
         assert status["backup_progress"] == {}
 
     def test_after_set_events(self, backup_instance):
-        backup_instance._backup_error = RuntimeError("test error")
+        backup_instance._backup_error = RuntimeError("error")
         backup_instance.backup_error_event.set()
-        backup_instance._scheduler_error = RuntimeError("test error")
+        backup_instance._scheduler_error = RuntimeError("error")
         backup_instance.scheduler_error_event.set()
         status = backup_instance.status
         assert status["backup_error"] is True
-        assert status["backup_error_message"] == "test error"
+        assert status["backup_error_message"] == "error"
         assert status["scheduler_error"] is True
-        assert status["scheduler_error_message"] == "test error"
+        assert status["scheduler_error_message"] == "error"
 
 
 class TestGetDestinationPaths:
@@ -340,7 +339,7 @@ class TestCopyItems:
 
     def test_cancel_during_copy(self, backup_instance):
         backup_instance._cancel_backup_event.set()
-        with pytest.raises(CancelledError):
+        with pytest.raises(backup.CancelledError):
             backup_instance.copy_items(backup_instance.sources, backup_instance.destination)
 
     def test_overwrite_existing(self, backup_instance, tmp_path):
@@ -393,25 +392,25 @@ class TestVerifyDetails:
         with pytest.raises(ValueError):
             backup_instance.verify_details()
 
-    def test_verify_sources(self, backup_instance):
+    def test_verify_sources(self, backup_instance, tmp_path):
         backup_instance.sources = []
         with pytest.raises(ValueError):
             backup_instance.verify_details()
         backup_instance.sources = [1, 2.0, True]
         with pytest.raises(ValueError):
             backup_instance.verify_details()
-        backup_instance.sources = [Path("/missing")]
+        backup_instance.sources = [tmp_path / "missing"]
         with pytest.raises(ValueError):
             backup_instance.verify_details()
 
-    def test_verify_destination(self, backup_instance):
+    def test_verify_destination(self, backup_instance, tmp_path):
         backup_instance.destination = None
         with pytest.raises(ValueError):
             backup_instance.verify_details()
         backup_instance.destination = 1
         with pytest.raises(ValueError):
             backup_instance.verify_details()
-        backup_instance.destination = Path("/missing")
+        backup_instance.destination = tmp_path / "missing"
         with pytest.raises(ValueError):
             backup_instance.verify_details()
 
@@ -443,7 +442,7 @@ class TestVerifyDetails:
         with pytest.raises(ValueError):
             backup_instance.verify_details()
 
-class TestBackup:
+class TestBackupThread:
     def test_start_and_wait(self, backup_instance):
         backup_instance.start_backup()
         result = backup_instance.wait_for_backup()
@@ -480,17 +479,17 @@ class TestBackup:
         backup_instance.cancel_backup(undo=True)
         assert not (destination / "source_dir").exists()
 
-    def test_cancel_re_raises(self, backup_instance):
-        backup_instance._backup_error = RuntimeError("test backup error")
+    def test_cancel_reraises(self, backup_instance):
+        backup_instance._backup_error = RuntimeError("error")
         backup_instance._backup_thread = threading.Thread(target=lambda: time.sleep(0.1), daemon=True)
         backup_instance._backup_thread.start()
-        with pytest.raises(RuntimeError, match="test backup error"):
+        with pytest.raises(RuntimeError, match="error"):
             backup_instance.cancel_backup()
         backup_instance._backup_thread.join()
 
-    def test_wait_re_raises(self, backup_instance):
-        backup_instance._backup_error = RuntimeError("test backup error")
-        with pytest.raises(RuntimeError, match="test backup error"):
+    def test_wait_reraises(self, backup_instance):
+        backup_instance._backup_error = RuntimeError("error")
+        with pytest.raises(RuntimeError, match="error"):
             backup_instance.wait_for_backup()
 
 
@@ -523,17 +522,17 @@ class TestScheduler:
     def test_wait_no_scheduler(self, backup_instance):
         backup_instance.wait_for_scheduler()
 
-    def test_stop_re_raises(self, backup_instance):
-        backup_instance._scheduler_error = RuntimeError("test scheduler error")
+    def test_stop_reraises(self, backup_instance):
+        backup_instance._scheduler_error = RuntimeError("error")
         backup_instance._scheduler_thread = threading.Thread(target=lambda: time.sleep(0.1), daemon=True)
         backup_instance._scheduler_thread.start()
-        with pytest.raises(RuntimeError, match="test scheduler error"):
+        with pytest.raises(RuntimeError, match="error"):
             backup_instance.stop_scheduler()
         backup_instance._scheduler_thread.join()
 
-    def test_wait_re_raises(self, backup_instance):
-        backup_instance._scheduler_error = RuntimeError("test scheduler error")
-        with pytest.raises(RuntimeError, match="test scheduler error"):
+    def test_wait_reraises(self, backup_instance):
+        backup_instance._scheduler_error = RuntimeError("error")
+        with pytest.raises(RuntimeError, match="error"):
             backup_instance.wait_for_scheduler()
 
     def test_scheduled_backup_sets_last_attempt(self, backup_instance):
@@ -546,31 +545,31 @@ class TestScheduler:
 
 class TestScheduleToTimedelta:
     def test_seconds(self):
-        td = _schedule_to_timedelta({"count": 30, "unit": "seconds"})
+        td = backup._schedule_to_timedelta({"count": 30, "unit": "seconds"})
         assert td.total_seconds() == 30
 
     def test_minutes(self):
-        td = _schedule_to_timedelta({"count": 5, "unit": "minutes"})
+        td = backup._schedule_to_timedelta({"count": 5, "unit": "minutes"})
         assert td.total_seconds() == 300
 
     def test_hours(self):
-        td = _schedule_to_timedelta({"count": 2, "unit": "hours"})
+        td = backup._schedule_to_timedelta({"count": 2, "unit": "hours"})
         assert td.total_seconds() == 7200
 
     def test_days(self):
-        td = _schedule_to_timedelta({"count": 7, "unit": "days"})
+        td = backup._schedule_to_timedelta({"count": 7, "unit": "days"})
         assert td.days == 7
 
     def test_weeks(self):
-        td = _schedule_to_timedelta({"count": 3, "unit": "weeks"})
+        td = backup._schedule_to_timedelta({"count": 3, "unit": "weeks"})
         assert td.days == 21
 
     def test_months(self):
-        rd = _schedule_to_timedelta({"count": 2, "unit": "months"})
+        rd = backup._schedule_to_timedelta({"count": 2, "unit": "months"})
         assert isinstance(rd, relativedelta)
         assert rd.months == 2
 
     def test_years(self):
-        rd = _schedule_to_timedelta({"count": 1, "unit": "years"})
+        rd = backup._schedule_to_timedelta({"count": 1, "unit": "years"})
         assert isinstance(rd, relativedelta)
         assert rd.years == 1

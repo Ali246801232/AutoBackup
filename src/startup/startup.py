@@ -6,7 +6,11 @@ from .logger import logger
 from .registry import load_registry
 
 
-def _build_commands(registry: dict) -> list:
+WAIT_FOR_STARTUP = 420.69
+system = platform.system()
+
+
+def build_commands(registry: dict) -> list:
     commands = []
     for configs_dir, python_executable in registry.items():
         commands.append([
@@ -16,9 +20,7 @@ def _build_commands(registry: dict) -> list:
         ])
     return commands
 
-
-def _run_command(command):
-    system = platform.system()
+def run_command(command):
     kwargs = {}
 
     kwargs["stdin"] = subprocess.DEVNULL
@@ -31,7 +33,7 @@ def _run_command(command):
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS
         except AttributeError:
             kwargs["creationflags"] = 0x08000000
-    elif system in ["Darwin", "Linux"]:
+    elif system in ["Linux", "Darwin"]:
         kwargs["start_new_session"] = True
         kwargs["close_fds"] = True
     else:
@@ -40,27 +42,25 @@ def _run_command(command):
     process = subprocess.Popen(command, **kwargs)
     return process
 
-def _run_commands(commands):
+def run_commands(commands):
     processes = []
     for cmd in commands:
-        proc = _run_command(cmd)
+        proc = run_command(cmd)
         processes.append(proc)
     return processes
 
 
 def main():
-
     registry = load_registry()
     if not registry:
         return
 
-    logger.debug("Loaded registry, waiting 420.69 seconds")
+    logger.debug(f"Loaded registry, waiting {WAIT_FOR_STARTUP} seconds")
 
-    time.sleep(420.69)
+    time.sleep(WAIT_FOR_STARTUP)
 
-
-    commands = _build_commands(registry)
-    processes = _run_commands(commands)
+    commands = build_commands(registry)
+    processes = run_commands(commands)
 
     logger.debug("Started processes, waiting for processes to end")
 
