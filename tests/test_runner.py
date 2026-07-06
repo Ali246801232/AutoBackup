@@ -2,17 +2,17 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from dashboard import runner
+from AutoBackup.dashboard import runner
 
 
 @pytest.fixture(autouse=True)
 def mock_webview():
-    with patch("dashboard.runner.webview"):
+    with patch("AutoBackup.dashboard.runner.webview"):
         yield
 
 @pytest.fixture(autouse=True)
 def mock_pystray():
-    with patch("dashboard.runner.pystray"):
+    with patch("AutoBackup.dashboard.runner.pystray"):
         yield
 
 @pytest.fixture(autouse=True)
@@ -23,16 +23,16 @@ def mock_PIL_image():
 @pytest.fixture(autouse=True)
 def mock_app():
     with (
-        patch("dashboard.runner.app"),
-        patch("dashboard.runner.ICON_PATH"),
-        patch("dashboard.runner.NOTIFIER"),
-        patch("dashboard.runner.get_backups"),
-        patch("dashboard.runner.get_backup_configs_dir"),
-        patch("dashboard.runner.set_backup_configs_dir"),
-        patch("dashboard.runner.load_backups"),
-        patch("dashboard.runner.save_backups"),
-        patch("dashboard.runner.setup_events_queue"),
-        patch("dashboard.runner.cleanup_events_queue"),
+        patch("AutoBackup.dashboard.runner.app"),
+        patch("AutoBackup.dashboard.runner.ICON_PATH"),
+        patch("AutoBackup.dashboard.runner.NOTIFIER"),
+        patch("AutoBackup.dashboard.runner.get_backups"),
+        patch("AutoBackup.dashboard.runner.get_backup_configs_dir"),
+        patch("AutoBackup.dashboard.runner.set_backup_configs_dir"),
+        patch("AutoBackup.dashboard.runner.load_backups"),
+        patch("AutoBackup.dashboard.runner.save_backups"),
+        patch("AutoBackup.dashboard.runner.setup_events_queue"),
+        patch("AutoBackup.dashboard.runner.cleanup_events_queue"),
     ):
         yield
 

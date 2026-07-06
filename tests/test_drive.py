@@ -6,7 +6,7 @@ import threading
 
 import pytest
 from unittest.mock import MagicMock, patch
-from backup import drive
+from AutoBackup.backup import drive
 
 
 def make_file(file_id="test-id", title="Test Item", parents=[]):
@@ -46,15 +46,15 @@ def script_dir(tmp_path):
     scripts_dir.mkdir()
     (scripts_dir / "client_secret.json").write_text("{}")
     (scripts_dir / "credentials.json").write_text("{}")
-    with patch("backup.drive.SCRIPT_DIR", scripts_dir):
+    with patch("AutoBackup.backup.drive.SCRIPT_DIR", scripts_dir):
         yield scripts_dir
 
 @pytest.fixture(autouse=True)
 def mock_pydrive2():
     """Patch GoogleAuth and GoogleDrive with configured side effects."""
     with (
-        patch("backup.drive.GoogleAuth") as GoogleAuth,
-        patch("backup.drive.GoogleDrive") as GoogleDrive,
+        patch("AutoBackup.backup.drive.GoogleAuth") as GoogleAuth,
+        patch("AutoBackup.backup.drive.GoogleDrive") as GoogleDrive,
     ):
         gauth = GoogleAuth.return_value
         gauth.access_token_expired = False
@@ -80,7 +80,7 @@ class TestInit:
 
     def test_authenticate_error(self):
         handler_instance = drive.DriveHandler()
-        with patch("backup.drive.GoogleAuth", side_effect=Exception("error")):
+        with patch("AutoBackup.backup.drive.GoogleAuth", side_effect=Exception("error")):
             with pytest.raises(RuntimeError):
                 handler_instance.authenticate()
 

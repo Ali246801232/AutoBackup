@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 import pytest
-from backup import backup
+from AutoBackup.backup import backup
 
 
 @pytest.fixture

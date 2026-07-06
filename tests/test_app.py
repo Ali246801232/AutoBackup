@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from dashboard import app
+from AutoBackup.dashboard import app
 
 
 @pytest.fixture
@@ -21,12 +21,12 @@ def mock_create_file_dialog():
 
 @pytest.fixture(autouse=True)
 def mock_notifypy():
-    with patch("dashboard.app.Notify"):
+    with patch("AutoBackup.dashboard.app.Notify"):
         yield
 
 @pytest.fixture(autouse=True)
 def mock_DriveHandler():
-    with patch("dashboard.app.DriveHandler") as DriveHandler:
+    with patch("AutoBackup.dashboard.app.DriveHandler") as DriveHandler:
         drive_folders = [
             {"id": "drive-id-1", "title": "drive-title-1"},
             {"id": "drive-id-2", "title": "drive-title-2"}
@@ -37,7 +37,7 @@ def mock_DriveHandler():
 
 @pytest.fixture(autouse=True)
 def mock_Backup(backup_dict):
-    with patch("dashboard.app.Backup") as Backup:
+    with patch("AutoBackup.dashboard.app.Backup") as Backup:
         backup = Backup.return_value
         backup.config_name = "test_config"
         backup.wait_for_backup.return_value = {
@@ -63,9 +63,9 @@ def mock_Backup(backup_dict):
 @pytest.fixture(autouse=True)
 def mock_startup():
     with (
-        patch("dashboard.app.is_in_startup") as is_in_startup,
-        patch("dashboard.app.add_to_startup") as add_to_startup,
-        patch("dashboard.app.remove_from_startup") as remove_from_startup
+        patch("AutoBackup.dashboard.app.is_in_startup") as is_in_startup,
+        patch("AutoBackup.dashboard.app.add_to_startup") as add_to_startup,
+        patch("AutoBackup.dashboard.app.remove_from_startup") as remove_from_startup
     ):
         is_in_startup.return_value = True
         yield

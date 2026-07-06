@@ -1,7 +1,7 @@
 """AutoBackup/__main__.py"""
 import argparse
 
-from dashboard import run_app
+from AutoBackup.dashboard import run_app
 
 
 def main():

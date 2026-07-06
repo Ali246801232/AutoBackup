@@ -1,28 +1,6 @@
 """Test that all package __init__.py and __main__.py files import correctly."""
 
 
-class TestBackup:
-    def test_init(self):
-        import backup
-        assert backup is not None
-
-    def test_exports(self):
-        from backup import Backup, DriveHandler
-        assert Backup is not None
-        assert DriveHandler is not None
-
-
-class TestDashboard:
-    def test_init(self):
-        import dashboard
-        assert dashboard is not None
-
-    def test_exports(self):
-        from dashboard import run_app, set_backup_configs_dir
-        assert run_app is not None
-        assert set_backup_configs_dir is not None
-
-
 class TestAutoBackup:
     def test_init(self):
         import AutoBackup
@@ -33,13 +11,35 @@ class TestAutoBackup:
         assert AutoBackup.__main__ is not None
 
 
+class TestBackup:
+    def test_init(self):
+        from AutoBackup import backup
+        assert backup is not None
+
+    def test_exports(self):
+        from AutoBackup.backup import Backup, DriveHandler
+        assert Backup is not None
+        assert DriveHandler is not None
+
+
+class TestDashboard:
+    def test_init(self):
+        from AutoBackup import dashboard
+        assert dashboard is not None
+
+    def test_exports(self):
+        from AutoBackup.dashboard import run_app, set_backup_configs_dir
+        assert run_app is not None
+        assert set_backup_configs_dir is not None
+
+
 class TestStartup:
     def test_init(self):
-        import startup
+        from AutoBackup import startup
         assert startup is not None
     
     def test_exports(self):
-        from startup import is_in_startup, add_to_startup, remove_from_startup
+        from AutoBackup.startup import is_in_startup, add_to_startup, remove_from_startup
         assert is_in_startup is not None
         assert add_to_startup is not None
         assert remove_from_startup is not None

@@ -6,7 +6,7 @@ from .logger import logger
 
 system = platform.system()
 
-COMMAND = [sys.executable, "-m", "startup.startup"]
+COMMAND = [sys.executable, "-m", "AutoBackup.startup.startup"]
 COMMAND_STRING = " ".join(f"\"{c}\"" for c in COMMAND)
 def COMMAND_XML(indent: int = 0) -> str:
     base = " " * (indent * 4)

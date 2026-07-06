@@ -8,8 +8,8 @@ from urllib.parse import quote
 from flask import Flask, render_template, abort, jsonify, request
 from werkzeug.exceptions import HTTPException
 
-from backup import Backup, DriveHandler, CancelledError
-from startup import is_in_startup, add_to_startup, remove_from_startup
+from AutoBackup.backup import Backup, DriveHandler, CancelledError
+from AutoBackup.startup import is_in_startup, add_to_startup, remove_from_startup
 from .logger import logger
 
 

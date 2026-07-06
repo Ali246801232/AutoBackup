@@ -4,7 +4,7 @@ import json
 
 import pytest
 from unittest.mock import MagicMock, patch
-from startup import registry, startup, ensure
+from AutoBackup.startup import registry, startup, ensure
 
 PYTHON_EXECUTABLE = "python"
 
@@ -15,11 +15,11 @@ def ensure_paths(tmp_path):
     autostart_dir = home / ".config" / "autostart"
     launch_agent_dir = home / "Library" / "LaunchAgents"
     with (
-        patch("startup.ensure.AUTOSTART_DIR", autostart_dir),
-        patch("startup.ensure.AUTOSTART_FILE", autostart_dir / "AutoBackup.desktop"),
-        patch("startup.ensure.LAUNCH_AGENT_DIR", launch_agent_dir),
-        patch("startup.ensure.LAUNCH_AGENT_FILE", launch_agent_dir / "com.autobackup.startup.plist"),
-        patch("startup.ensure.LAUNCH_AGENT_LOG", launch_agent_dir / "autobackup.log"),
+        patch("AutoBackup.startup.ensure.AUTOSTART_DIR", autostart_dir),
+        patch("AutoBackup.startup.ensure.AUTOSTART_FILE", autostart_dir / "AutoBackup.desktop"),
+        patch("AutoBackup.startup.ensure.LAUNCH_AGENT_DIR", launch_agent_dir),
+        patch("AutoBackup.startup.ensure.LAUNCH_AGENT_FILE", launch_agent_dir / "com.autobackup.startup.plist"),
+        patch("AutoBackup.startup.ensure.LAUNCH_AGENT_LOG", launch_agent_dir / "autobackup.log"),
     ):
         yield autostart_dir, launch_agent_dir
 
@@ -35,7 +35,7 @@ def startup_registry_path(tmp_path, startup_registry):
     registry_path = tmp_path / "home_dir" / "AutoBackup" / "startup.json"
     registry_path.parent.mkdir(parents=True, exist_ok=True)
     registry_path.write_text(json.dumps(startup_registry, indent=4))
-    with patch("startup.registry.STARTUP_REGISTRY", registry_path):
+    with patch("AutoBackup.startup.registry.STARTUP_REGISTRY", registry_path):
         yield registry_path
 
 
@@ -47,31 +47,31 @@ def mock_winreg():
 
 @pytest.fixture(autouse=True)
 def mock_Popen():
-    with patch("startup.startup.subprocess.Popen") as Popen:
+    with patch("AutoBackup.startup.startup.subprocess.Popen") as Popen:
         yield Popen
 
 
 @pytest.fixture
 def windows_system():
     with (
-        patch("startup.ensure.system", "Windows"),
-        patch("startup.startup.system", "Windows"),
+        patch("AutoBackup.startup.ensure.system", "Windows"),
+        patch("AutoBackup.startup.startup.system", "Windows"),
     ):
         yield
 
 @pytest.fixture
 def linux_system():
     with (
-        patch("startup.ensure.system", "Linux"),
-        patch("startup.startup.system", "Linux"),
+        patch("AutoBackup.startup.ensure.system", "Linux"),
+        patch("AutoBackup.startup.startup.system", "Linux"),
     ):
         yield
 
 @pytest.fixture
 def macos_system():
     with (
-        patch("startup.ensure.system", "Darwin"),
-        patch("startup.startup.system", "Darwin"),
+        patch("AutoBackup.startup.ensure.system", "Darwin"),
+        patch("AutoBackup.startup.startup.system", "Darwin"),
     ):
         yield
 
@@ -138,8 +138,8 @@ class TestStartupScript:
         import subprocess
         command = ["python", "-c", "pass"]
         with (  # patch in case tests run on non-Windows
-            patch("startup.startup.subprocess.CREATE_NO_WINDOW", 0x08000000, create=True),
-            patch("startup.startup.subprocess.DETACHED_PROCESS", 0x00000008, create=True),
+            patch("AutoBackup.startup.startup.subprocess.CREATE_NO_WINDOW", 0x08000000, create=True),
+            patch("AutoBackup.startup.startup.subprocess.DETACHED_PROCESS", 0x00000008, create=True),
         ):
             result = startup.run_command(command)
         mock_Popen.assert_called_once_with(
