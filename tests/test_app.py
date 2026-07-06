@@ -13,11 +13,11 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def mock_webview():
+def mock_create_file_dialog():
     window = MagicMock()
     window.create_file_dialog.return_value = "/selected/path"
     with patch.object(app.webview, "windows", [window]):
-        yield
+        yield window.create_file_dialog
 
 @pytest.fixture(autouse=True)
 def mock_notifypy():
@@ -197,10 +197,11 @@ class TestBackups:
         assert result == configs_dir.resolve()
         assert configs_dir.exists()
 
-    def test_load_backups(self, set_backups_config_dir):
-        (app.BACKUP_CONFIGS_DIR / "test_config.json").write_text("{}")
+    def test_load_backups(self, set_backups_config_dir, backup_dict):
+        config_name = backup_dict["config_name"]
+        (app.BACKUP_CONFIGS_DIR / f"{config_name}.json").write_text("{}")
         app.load_backups()
-        assert "test_config" in app.BACKUPS
+        assert config_name in app.BACKUPS
 
     def test_save_backups(self, set_backups, set_backups_config_dir):
         backup = set_backups
@@ -446,31 +447,31 @@ class TestDriveBrowserApi:
 
 
 class TestUtilsApi:
-    def test_api_file_dialog_for_file(self, client):
+    def test_api_file_dialog_for_file(self, client, mock_create_file_dialog):
         resp = client.post("/api/file_dialog", json={"type": "file"})
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["path"] == "/selected/path"
+        assert data["path"] == mock_create_file_dialog.return_value
 
-    def test_api_file_dialog_for_folder(self, client):
+    def test_api_file_dialog_for_folder(self, client, mock_create_file_dialog):
         resp = client.post("/api/file_dialog", json={"type": "folder"})
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["path"] == "/selected/path"
+        assert data["path"] == mock_create_file_dialog.return_value
 
-    def test_api_file_dialog_for_file_with_initial_path(self, client, tmp_path):
+    def test_api_file_dialog_for_file_with_initial_path(self, client, tmp_path, mock_create_file_dialog):
         file_path = tmp_path / "existing.txt"
         file_path.write_text("test")
         resp = client.post("/api/file_dialog", json={"type": "file", "initial_path": str(file_path)})
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["path"] == "/selected/path"
+        assert data["path"] == mock_create_file_dialog.return_value
 
-    def test_api_file_dialog_for_folder_with_initial_path(self, client, tmp_path):
+    def test_api_file_dialog_for_folder_with_initial_path(self, client, tmp_path, mock_create_file_dialog):
         resp = client.post("/api/file_dialog", json={"type": "folder", "initial_path": str(tmp_path)})
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data["path"] == "/selected/path"
+        assert data["path"] == mock_create_file_dialog.return_value
 
     def test_api_notify(self, client):
         resp = client.post("/api/notify", json={"title": "Test", "message": "Hello"})
