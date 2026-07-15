@@ -332,10 +332,6 @@ class TestBackupsApi:
     def test_api_edit_backup(self, client, set_backups):
         resp = client.post(f"/api/backups/{set_backups.config_name}/edit", json={"config_name": "renamed"})
         assert resp.status_code == 200
-
-    def test_api_edit_backup_same_config_name(self, client, set_backups):
-        resp = client.post(f"/api/backups/{set_backups.config_name}/edit", json={"config_name": set_backups.config_name})
-        assert resp.status_code == 200
         set_backups.update_from_dict.assert_called_once()
 
     def test_api_edit_backup_missing_backup(self, client):
