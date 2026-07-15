@@ -21,26 +21,19 @@ The application runs as a desktop application with a system tray icon and provid
     cd AutoBackup
     ```
 
-2. Create a virtual environment (optional, but recommended):
+2. Install the project with [uv](https://docs.astral.sh/uv/):
     ```bash
-    python -m venv .venv
-    .venv/Scripts/Activate  # Windows
-    .venv/bin/activate      # Linux/macOS
-    ```
-
-3. Install the project:
-    ```bash
-    pip install .
+    uv sync
     ```
 
 4. Run the project with the default configs directory:
     ```bash
-    AutoBackup
+    uv run AutoBackup
     ```
 
 5. Or run with a custom backup configs directory:
     ```bash
-    AutoBackup --configs-dir "path/to/backup_configs/"
+    uv run AutoBackup --configs-dir "path/to/backup_configs/"
     ```
 
 6. Create a new backup config with the `+` button.
