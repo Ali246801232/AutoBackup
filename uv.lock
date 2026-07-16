@@ -21,6 +21,11 @@ dependencies = [
     { name = "pywebview" },
 ]
 
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
@@ -33,12 +38,14 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.2.0" },
     { name = "pydrive2", specifier = ">=1.21.3" },
     { name = "pystray", specifier = ">=0.19.5" },
+    { name = "pytest", marker = "extra == 'dev'" },
     { name = "python-dateutil", specifier = ">=2.9.0" },
     { name = "pywebview", specifier = ">=6.2.1" },
 ]
+provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.3" }]
+dev = [{ name = "pytest" }]
 
 [[package]]
 name = "blinker"
