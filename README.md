@@ -21,27 +21,22 @@ The application runs as a desktop application with a system tray icon and provid
     cd AutoBackup
     ```
 
-2. Install the project with [uv](https://docs.astral.sh/uv/):
+2. Install and run the project with [uv](https://docs.astral.sh/uv/):
     ```bash
     uv sync
-    ```
-
-4. Run the project with the default configs directory:
-    ```bash
     uv run AutoBackup
     ```
-
-5. Or run with a custom backup configs directory:
+    Or with pip:
     ```bash
-    uv run AutoBackup --configs-dir "path/to/backup_configs/"
+    pip install .
+    AutoBackup
     ```
+    > *If you use pip, a venv is recommended; there's a significant amount of dependencies*
 
-6. Create a new backup config with the `+` button.
+3. Create a new backup config with the `+` button.
 
-7. To use scheduling, add the config directory to run at startup from `≡` → `⏻ Startup Settings` → `Add to Startup`.
-
-> [!NOTE]
-> Scheduling is only supported for Windows, Linux, and macOS.
+4. For scheduled backups to work, add the program to run at startup from `≡` → `⏻ Startup Settings` → `Add to Startup`.
+    > *Scheduling is currently only supported for Windows, Linux, and macOS.*
 
 
 ## Dashboard
