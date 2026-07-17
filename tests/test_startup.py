@@ -195,21 +195,19 @@ class TestStartupScript:
 class TestEnsureStartupEntry:
     def test_ensure_windows(self, windows_system, mock_winreg):
         ensure.ensure_startup_entry()
-        key = mock_winreg.OpenKey.return_value
-        mock_winreg.OpenKey.assert_called_once_with(
+        mock_winreg.OpenKeyEx.assert_called_once_with(
             mock_winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\Run",
             0,
             mock_winreg.KEY_SET_VALUE,
         )
         mock_winreg.SetValueEx.assert_called_once_with(
-            key,
+            mock_winreg.OpenKeyEx.return_value.__enter__.return_value,
             "AutoBackup",
             0,
             mock_winreg.REG_SZ,
             ensure.COMMAND_STRING,
         )
-        mock_winreg.CloseKey.assert_called_once_with(key)
 
     def test_ensure_linux(self, linux_system):
         ensure.ensure_startup_entry()
@@ -258,9 +256,16 @@ class TestRemoveStartupEntry:
 
         ensure.remove_startup_entry()
 
-        key = mock_winreg.OpenKey.return_value
-        mock_winreg.DeleteValue.assert_called_once_with(key, "AutoBackup")
-        mock_winreg.CloseKey.assert_any_call(key)
+        mock_winreg.OpenKeyEx.assert_called_with(
+            mock_winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            mock_winreg.KEY_SET_VALUE,
+        )
+        mock_winreg.DeleteValue.assert_called_once_with(
+            mock_winreg.OpenKeyEx.return_value.__enter__.return_value,
+            "AutoBackup",
+        )
 
     def test_remove_linux(self, linux_system):
         ensure.ensure_startup_entry()

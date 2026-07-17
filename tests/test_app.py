@@ -107,17 +107,24 @@ def reset_state():
 
 
 @pytest.fixture
-def set_backups_config_dir(tmp_path):
+def backup_configs_dir(tmp_path):
     configs_dir = tmp_path / "backup_configs"
     configs_dir.mkdir()
-    app.BACKUP_CONFIGS_DIR = configs_dir
+    (configs_dir / f"test_config.json").write_text("")
     return configs_dir
 
 @pytest.fixture
-def set_backups(client, set_backups_config_dir, backup_dict):
+def set_backup_configs_dir(backup_configs_dir):
+    app.BACKUP_CONFIGS_DIR = backup_configs_dir
+    return app.BACKUP_CONFIGS_DIR
+
+@pytest.fixture
+def set_backups(client, set_backup_configs_dir, backup_dict):
     resp = client.post("/api/backups/new", json=backup_dict)
     assert resp.status_code == 201
-    return app.BACKUPS[backup_dict["config_name"]]
+    backup = app.BACKUPS[backup_dict["config_name"]]
+    backup.to_json.reset_mock()
+    return backup
 
 
 class TestEventQueue:
@@ -180,24 +187,20 @@ class TestEventQueue:
 
 
 class TestBackups:
-    def test_get_backups(self):
-        app.BACKUPS = {"test": MagicMock()}
-        result = app.get_backups()
-        assert result == app.BACKUPS
+    def test_setup_backups(self, backup_configs_dir):
+        app.setup_backups(backup_configs_dir, start_schedulers=True)
+        assert app.BACKUP_CONFIGS_DIR == backup_configs_dir.resolve()
+        assert "test_config" in app.BACKUPS
+        backup = app.BACKUPS["test_config"]
+        backup.start_scheduler.assert_called_once()
 
-    def test_get_backup_configs_dir(self):
-        app.BACKUP_CONFIGS_DIR = "test"
-        result = app.get_backup_configs_dir()
-        assert result == "test"
+    def test_cleanup_backups(self, set_backups):
+        backup = set_backups
+        app.cleanup_backups()
+        backup.stop_scheduler.assert_called_once()
+        backup.cancel_backup.assert_called_once()
 
-    def test_set_backup_configs_dir(self, tmp_path):
-        configs_dir = tmp_path / "test"
-        result = app.set_backup_configs_dir(configs_dir)
-        assert app.BACKUP_CONFIGS_DIR == configs_dir.resolve()
-        assert result == configs_dir.resolve()
-        assert configs_dir.exists()
-
-    def test_load_backups(self, set_backups_config_dir, backup_dict):
+    def test_load_backups(self, set_backup_configs_dir, backup_dict):
         config_name = backup_dict["config_name"]
         (app.BACKUP_CONFIGS_DIR / f"{config_name}.json").write_text(
             "{\"config_name\": \"test_config\", \"sources\": [], \"destination\": \"/tmp\"}"
@@ -205,7 +208,7 @@ class TestBackups:
         app.load_backups()
         assert "test_config" in app.BACKUPS
 
-    def test_save_backups(self, set_backups, set_backups_config_dir):
+    def test_save_backups(self, set_backups, set_backup_configs_dir):
         backup = set_backups
         backup.to_json = MagicMock()
         app.save_backups()
@@ -292,7 +295,7 @@ class TestBackupsApi:
         resp = client.post(f"/api/backups/{set_backups.config_name}/stop_scheduler")
         assert resp.status_code == 500
 
-    def test_api_delete_backup(self, client, set_backups, set_backups_config_dir):
+    def test_api_delete_backup(self, client, set_backups, set_backup_configs_dir):
         resp = client.post(f"/api/backups/{set_backups.config_name}/delete")
         assert resp.status_code == 200
         assert set_backups.config_name not in app.BACKUPS
@@ -309,7 +312,7 @@ class TestBackupsApi:
         resp = client.post(f"/api/backups/{set_backups.config_name}/delete")
         assert resp.status_code == 500
 
-    def test_api_new_backup(self, client, backup_dict, set_backups_config_dir):
+    def test_api_new_backup(self, client, backup_dict, set_backup_configs_dir):
         resp = client.post("/api/backups/new", json=backup_dict)
         assert resp.status_code == 201
         data = resp.get_json()
@@ -319,12 +322,12 @@ class TestBackupsApi:
         resp = client.post("/api/backups/new", json={})
         assert resp.status_code == 400
 
-    def test_api_new_backup_verify_details_error(self, client, backup_dict, set_backups_config_dir):
+    def test_api_new_backup_verify_details_error(self, client, backup_dict, set_backup_configs_dir):
         app.Backup.from_dict.return_value.verify_details.side_effect = ValueError("invalid")
         resp = client.post("/api/backups/new", json=backup_dict)
         assert resp.status_code == 400
 
-    def test_api_new_backup_error(self, client, backup_dict, set_backups_config_dir):
+    def test_api_new_backup_error(self, client, backup_dict, set_backup_configs_dir):
         app.Backup.from_dict.side_effect = Exception("error")
         resp = client.post("/api/backups/new", json=backup_dict)
         assert resp.status_code == 500
@@ -363,28 +366,28 @@ class TestBackupsApi:
 
 
 class TestStartupApi:
-    def test_api_startup_status(self, client, set_backups_config_dir):
+    def test_api_startup_status(self, client, set_backup_configs_dir):
         resp = client.get("/api/startup/status")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["registered"] is True
 
-    def test_api_startup_add(self, client, set_backups_config_dir):
+    def test_api_startup_add(self, client, set_backup_configs_dir):
         app.is_in_startup.return_value = False
         resp = client.post("/api/startup/add")
         assert resp.status_code == 200
 
-    def test_api_startup_add_already_in_startup(self, client, set_backups_config_dir):
+    def test_api_startup_add_already_in_startup(self, client, set_backup_configs_dir):
         app.is_in_startup.return_value = True
         resp = client.post("/api/startup/add")
         assert resp.status_code == 409
 
-    def test_api_startup_remove(self, client, set_backups_config_dir):
+    def test_api_startup_remove(self, client, set_backup_configs_dir):
         app.is_in_startup.return_value = True
         resp = client.post("/api/startup/remove")
         assert resp.status_code == 200
 
-    def test_api_startup_remove_not_in_startup(self, client, set_backups_config_dir):
+    def test_api_startup_remove_not_in_startup(self, client, set_backup_configs_dir):
         app.is_in_startup.return_value = False
         resp = client.post("/api/startup/remove")
         assert resp.status_code == 404

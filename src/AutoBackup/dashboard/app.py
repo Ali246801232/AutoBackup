@@ -143,19 +143,47 @@ DEFAULT_BACKUP_CONFIGS_DIR = Path.home() / "AutoBackup" / "backup_configs"
 BACKUP_CONFIGS_DIR: Path = DEFAULT_BACKUP_CONFIGS_DIR
 BACKUPS: dict[str, Backup]  = {}
 
-def get_backups() -> dict[str, Backup]:
-    return BACKUPS
+def setup_backups(backup_configs_dir: Path = None, start_schedulers: bool = False):
+    """Load all backups from config directory, and optionally start their schedulers"""
+    global BACKUPS, BACKUP_CONFIGS_DIR
+    try:
+        if backup_configs_dir is None:
+            backup_configs_dir = DEFAULT_BACKUP_CONFIGS_DIR
+        BACKUP_CONFIGS_DIR = Path(backup_configs_dir).resolve()
+        BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
+        load_backups()
+        logger.info(f"Loaded {len(BACKUPS)} backups from {BACKUP_CONFIGS_DIR}")
+    except Exception as e:
+        logger.error(f"Error while loading backups: {e}")
+        raise
 
-def get_backup_configs_dir() -> Path:
-    return BACKUP_CONFIGS_DIR
+    if start_schedulers:
+        for config_name, backup in BACKUPS.items():
+            try:
+                backup.start_scheduler()
+                logger.info(f"Started scheduler for backup {config_name}")
+            except Exception as e:
+                logger.error(f"Error while starting scheduler for backup {config_name}: {e}")
 
-def set_backup_configs_dir(dir_path: str | Path = None) -> Path:
-    global BACKUP_CONFIGS_DIR
-    if dir_path is None:
-        dir_path = DEFAULT_BACKUP_CONFIGS_DIR
-    BACKUP_CONFIGS_DIR = Path(dir_path).resolve()
-    BACKUP_CONFIGS_DIR.mkdir(parents=True, exist_ok=True)
-    return BACKUP_CONFIGS_DIR
+def cleanup_backups():
+    """Stop all schedulers, cancel all backups, and save all backup configs"""
+    global BACKUPS, BACKUP_CONFIGS_DIR
+    if BACKUPS is not None:
+        for config_name, backup in BACKUPS.items():
+            try:
+                backup.stop_scheduler()
+                backup.cancel_backup()
+                logger.info(f"Stopped backup {config_name}")
+            except Exception as e:
+                logger.error(f"Error while stopping backup {config_name} during cleanup: {e}")
+
+        if BACKUP_CONFIGS_DIR is not None:
+            try:
+                save_backups()
+                logger.info(f"Saved {len(BACKUPS)} backups to {BACKUP_CONFIGS_DIR}")
+            except Exception as e:
+                logger.error(f"Error while saving backups during cleanup: {e}")
+
 
 def sanitize_config_name(name: str) -> str:
     safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)

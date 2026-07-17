@@ -28,9 +28,8 @@ class TestDashboard:
         assert dashboard is not None
 
     def test_exports(self):
-        from AutoBackup.dashboard import run_app, set_backup_configs_dir
+        from AutoBackup.dashboard import run_app
         assert run_app is not None
-        assert set_backup_configs_dir is not None
 
 
 class TestStartup:

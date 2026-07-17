@@ -46,25 +46,17 @@ REGISTRY_VALUE_NAME = "AutoBackup"
 
 def _ensure_startup_windows():
     import winreg
-    key = winreg.OpenKey(
+    with winreg.OpenKeyEx(
         winreg.HKEY_CURRENT_USER, REGISTRY_KEY,
         0, winreg.KEY_SET_VALUE,
-    )
-    winreg.SetValueEx(
-        key, REGISTRY_VALUE_NAME, 0, winreg.REG_SZ,
-        COMMAND_STRING
-    )
-    winreg.CloseKey(key)
+    ) as key:
+        winreg.SetValueEx(key, REGISTRY_VALUE_NAME, 0, winreg.REG_SZ, COMMAND_STRING)
 
 def _remove_startup_windows():
     import winreg
     try:
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER, REGISTRY_KEY,
-            0, winreg.KEY_SET_VALUE,
-        )
-        winreg.DeleteValue(key, REGISTRY_VALUE_NAME)
-        winreg.CloseKey(key)
+        with winreg.OpenKeyEx(winreg.HKEY_CURRENT_USER, REGISTRY_KEY, 0, winreg.KEY_SET_VALUE) as key:
+            winreg.DeleteValue(key, REGISTRY_VALUE_NAME)
     except FileNotFoundError:
         pass
 

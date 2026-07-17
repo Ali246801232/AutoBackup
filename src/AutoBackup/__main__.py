@@ -1,6 +1,7 @@
 """AutoBackup/__main__.py"""
 import argparse
 
+from .logger import cleanup_logs
 from AutoBackup.dashboard import run_app
 
 
@@ -15,4 +16,5 @@ def main():
 
 
 if __name__ == "__main__":
+    cleanup_logs()
     main()

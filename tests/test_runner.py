@@ -26,11 +26,8 @@ def mock_app():
         patch("AutoBackup.dashboard.runner.app"),
         patch("AutoBackup.dashboard.runner.ICON_PATH"),
         patch("AutoBackup.dashboard.runner.NOTIFIER"),
-        patch("AutoBackup.dashboard.runner.get_backups"),
-        patch("AutoBackup.dashboard.runner.get_backup_configs_dir"),
-        patch("AutoBackup.dashboard.runner.set_backup_configs_dir"),
-        patch("AutoBackup.dashboard.runner.load_backups"),
-        patch("AutoBackup.dashboard.runner.save_backups"),
+        patch("AutoBackup.dashboard.runner.setup_backups"),
+        patch("AutoBackup.dashboard.runner.cleanup_backups"),
         patch("AutoBackup.dashboard.runner.setup_events_queue"),
         patch("AutoBackup.dashboard.runner.cleanup_events_queue"),
     ):
@@ -63,8 +60,8 @@ def set_webview_tray():
 class TestSetupCleanup:
     def test_setup(self):
         with (
-            patch.object(runner, 'setup_backups'),
             patch.object(runner, 'setup_webview'),
+            patch.object(runner, 'setup_backups'),
             patch.object(runner, 'setup_events_queue')
         ):
             runner.setup("test", True, True)
@@ -74,8 +71,8 @@ class TestSetupCleanup:
 
     def test_cleanup(self):
         with (
-            patch.object(runner, 'cleanup_backups'),
             patch.object(runner, 'cleanup_webview'),
+            patch.object(runner, 'cleanup_backups'),
             patch.object(runner, 'cleanup_events_queue')
         ):
             runner.cleanup()
@@ -83,15 +80,7 @@ class TestSetupCleanup:
             runner.cleanup_backups.assert_called_once()
             runner.cleanup_webview.assert_called_once()
 
-class TestHandleBackups:
-    def test_setup_backups(self):
-        runner.setup_backups("test", True)
-        runner.set_backup_configs_dir.assert_called_once_with("test")
-        runner.load_backups.assert_called()
 
-    def test_cleanup_backups(self):
-        runner.cleanup_backups()
-        runner.save_backups.assert_called()
 
 class TestHandleWebviewPystray:
     def test_toggle_window_visible_to_hidden(self, set_webview_tray):
